@@ -6,7 +6,7 @@
 
 ```
 
-gmaths-platform/
+gmaths-education-website/
 ├── backend/               # Fastify server (Node.js/TypeScript)
 │   ├── package.json       # Backend dependencies and scripts
 │   ├── tsconfig.json      # TypeScript config for backend
