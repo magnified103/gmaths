@@ -50,12 +50,12 @@ This design cleanly separates concerns and allows parallel development of fronte
 **Initial Setup Steps:** 
 
 1. **Backend Initialization:** Create the backend Node.js project and add core dependencies. For example, initialize npm and install Fastify:  
-   ```bash
-   cd backend  
-   npm init -y  
-   npm install fastify fastify-plugin @fastify/cors @fastify/jwt @fastify/formbody @fastify/static bcrypt dotenv  
-   npm install -D typescript tsx @types/node vitest
-````
+  ```bash
+  cd backend  
+  npm init -y  
+  npm install fastify fastify-plugin @fastify/cors @fastify/jwt @fastify/formbody @fastify/static bcrypt dotenv  
+  npm install -D typescript tsx @types/node vitest
+  ```
 
 * Generate a TypeScript config: `npx tsc --init` (target ES2020+, module commonjs/ESM as appropriate). Enable strict typing and path aliasing for clean imports.
 * Install **Prisma ORM** and initialize it for our database:
