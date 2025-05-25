@@ -29,3 +29,5 @@ This document contains strict rules that **must be followed at all times** by th
 - **Always warn and get confirmation before making potentially unsafe changes.** If a change could have broad side effects or risks (e.g. altering critical logic or configurations), do not proceed without approval. First, explain the potential impact to the user and obtain explicit permission to continue.
 
 - **Always respect ignore files and protected sections.** Never read from or write to files that are marked as off-limits (e.g. listed in `.cursorignore` or `.gitignore`) or parts of code that are designated "do not edit." Obey all project conventions that restrict editing of certain files or sections.
+
+- **Never write `package.json` files from scratch.** Respect the commands idiomatically used to generate them, and edit only scripts and related configurations. You must add packages to a `package.json` using only `pnpm add` or similar commands.
