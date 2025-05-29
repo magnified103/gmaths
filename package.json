@@ -1,0 +1,35 @@
+{
+  "name": "gmaths-education-website",
+  "version": "1.0.0",
+  "description": "GMATHS Education Online Testing Platform - Comprehensive platform for mathematics and STEAM subject testing with Vietnamese UI",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm run --parallel dev",
+    "build": "pnpm run --recursive build",
+    "test": "pnpm run --recursive test",
+    "lint": "pnpm run --recursive lint",
+    "type-check": "pnpm run --recursive type-check",
+    "clean": "pnpm run --recursive clean"
+  },
+  "keywords": [
+    "education",
+    "mathematics",
+    "online-testing",
+    "vietnamese",
+    "steam",
+    "exam-platform"
+  ],
+  "author": "GMATHS Education",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.11.0",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.33.0",
+    "@typescript-eslint/parser": "^8.33.0",
+    "eslint": "^9.27.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.4.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3"
+  }
+}
