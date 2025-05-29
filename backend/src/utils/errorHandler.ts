@@ -1,0 +1,97 @@
+import { FastifyReply } from 'fastify';
+import { ZodError } from 'zod';
+
+/**
+ * Standard error response interface
+ */
+export interface ErrorResponse {
+  error: string;
+  message: string;
+  statusCode: number;
+  details?: any;
+}
+
+/**
+ * Format Zod validation errors for Vietnamese error responses.
+ * @param error - Zod validation error.
+ * @returns Formatted error object.
+ */
+export function formatValidationError(error: ZodError): ErrorResponse {
+  const errors = error.errors.map(err => ({
+    field: err.path.join('.'),
+    message: err.message
+  }));
+
+  return {
+    error: 'Validation Error',
+    message: 'Dữ liệu đầu vào không hợp lệ',
+    statusCode: 400,
+    details: errors
+  };
+}
+
+/**
+ * Centralized error handler for consistent error responses across routes.
+ * @param error - Error object.
+ * @param reply - Fastify reply object.
+ * @param context - Optional context for logging.
+ */
+export function handleRouteError(error: any, reply: FastifyReply, context?: string): FastifyReply {
+  // Handle Zod validation errors
+  if (error instanceof ZodError) {
+    const formattedError = formatValidationError(error);
+    return reply.status(400).send(formattedError);
+  }
+
+  // Handle known application errors with Vietnamese messages
+  if (error instanceof Error && error.message) {
+    const knownErrors = [
+      { pattern: 'Email đã được sử dụng', status: 409 },
+      { pattern: 'Tên đăng nhập đã được sử dụng', status: 409 },
+      { pattern: 'already exists', status: 409 },
+      { pattern: 'Email hoặc mật khẩu không đúng', status: 400 },
+      { pattern: 'Token xác thực email không hợp lệ', status: 400 },
+      { pattern: 'Token đặt lại mật khẩu không hợp lệ', status: 400 },
+      { pattern: 'Không tìm thấy', status: 404 },
+      { pattern: 'không tồn tại', status: 404 }
+    ];
+
+    for (const knownError of knownErrors) {
+      if (error.message.includes(knownError.pattern)) {
+        return reply.status(knownError.status).send({
+          error: knownError.status === 409 ? 'Conflict Error' : 
+                 knownError.status === 404 ? 'Not Found' : 'Bad Request',
+          message: error.message,
+          statusCode: knownError.status
+        });
+      }
+    }
+  }
+
+  // Log error for debugging (only for unexpected errors)
+  if (context) {
+    console.error(`${context}:`, error);
+  }
+
+  // Default to internal server error
+  return reply.status(500).send({
+    error: 'Internal Server Error',
+    message: 'Đã xảy ra lỗi hệ thống',
+    statusCode: 500
+  });
+}
+
+/**
+ * Success response helper for consistent success responses.
+ * @param data - Response data.
+ * @param message - Success message in Vietnamese.
+ * @param statusCode - HTTP status code (default: 200).
+ */
+export function successResponse(data: any, message: string, statusCode: number = 200) {
+  return {
+    success: true,
+    message,
+    data,
+    statusCode
+  };
+} 

@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { PrismaClient, User, UserRole } from '@prisma/client';
+import { checkUserExists, throwIfUserExists } from '../utils/userHelpers';
 
 const prisma = new PrismaClient();
 
@@ -110,39 +111,26 @@ export function generateSecureToken(): string {
 
 /**
  * Register a new user with email verification.
+ * All new registrations are assigned STUDENT role for security.
  * @param data - User registration data.
  * @returns Promise resolving to user data and token.
  */
 export async function registerUser(data: RegisterData): Promise<AuthResponse> {
-  // Check if user already exists
-  const existingUser = await prisma.user.findFirst({
-    where: {
-      OR: [
-        { email: data.email },
-        { username: data.username }
-      ]
-    }
-  });
-
-  if (existingUser) {
-    if (existingUser.email === data.email) {
-      throw new Error('Email đã được sử dụng');
-    }
-    if (existingUser.username === data.username) {
-      throw new Error('Tên đăng nhập đã được sử dụng');
-    }
-  }
+  // Check if user already exists using centralized helper
+  const existenceCheck = await checkUserExists(data.email, data.username);
+  throwIfUserExists(existenceCheck);
 
   // Hash password
   const hashedPassword = await hashPassword(data.password);
   const emailVerificationToken = generateSecureToken();
 
-  // Create user
+  // Create user with STUDENT role (security: prevent admin creation via registration)
   const user = await prisma.user.create({
     data: {
       username: data.username,
       email: data.email,
       password: hashedPassword,
+      role: UserRole.STUDENT, // Explicitly set to STUDENT for security
       emailVerificationToken
     }
   });
@@ -316,4 +304,211 @@ export async function getUserById(userId: string): Promise<Pick<User, 'id' | 'us
   });
 
   return user;
+}
+
+/**
+ * Create a new user with specified role (admin function).
+ * @param username - Username.
+ * @param email - Email address.
+ * @param password - Password.
+ * @param role - User role.
+ * @returns Promise resolving to created user data.
+ */
+export async function createUser(
+  username: string, 
+  email: string, 
+  password: string, 
+  role: UserRole = UserRole.STUDENT
+): Promise<Pick<User, 'id' | 'username' | 'email' | 'role' | 'emailVerified' | 'createdAt' | 'updatedAt' | 'lastLoginAt'>> {
+  // Check if user already exists using centralized helper
+  const existenceCheck = await checkUserExists(email, username);
+  throwIfUserExists(existenceCheck);
+
+  // Hash password
+  const hashedPassword = await hashPassword(password);
+  const emailVerificationToken = generateSecureToken();
+
+  // Create user
+  const user = await prisma.user.create({
+    data: {
+      username,
+      email,
+      password: hashedPassword,
+      role,
+      emailVerificationToken
+    },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      role: true,
+      emailVerified: true,
+      createdAt: true,
+      updatedAt: true,
+      lastLoginAt: true
+    }
+  });
+
+  return user;
+}
+
+/**
+ * Interface for user list filters
+ */
+interface UserFilters {
+  search?: string;
+  role: 'all' | 'student' | 'admin';
+  emailVerified: 'all' | 'verified' | 'unverified';
+  sortBy: 'username' | 'email' | 'createdAt' | 'lastLoginAt';
+  sortOrder: 'asc' | 'desc';
+  page: number;
+  limit: number;
+}
+
+/**
+ * Interface for user list response
+ */
+interface UserListResponse {
+  users: Array<Pick<User, 'id' | 'username' | 'email' | 'role' | 'emailVerified' | 'createdAt' | 'updatedAt' | 'lastLoginAt'>>;
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Get paginated list of users with filtering (admin function).
+ * @param filters - Filter and pagination options.
+ * @returns Promise resolving to paginated user list.
+ */
+export async function getUserList(filters: UserFilters): Promise<UserListResponse> {
+  const { search, role, emailVerified, sortBy, sortOrder, page, limit } = filters;
+
+  // Build where clause
+  const where: any = {};
+
+  // Search filter
+  if (search) {
+    where.OR = [
+      { username: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+
+  // Role filter
+  if (role !== 'all') {
+    where.role = role.toUpperCase();
+  }
+
+  // Email verification filter
+  if (emailVerified !== 'all') {
+    where.emailVerified = emailVerified === 'verified';
+  }
+
+  // Get total count
+  const total = await prisma.user.count({ where });
+
+  // Get users with pagination
+  const users = await prisma.user.findMany({
+    where,
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      role: true,
+      emailVerified: true,
+      createdAt: true,
+      updatedAt: true,
+      lastLoginAt: true
+    },
+    orderBy: { [sortBy]: sortOrder },
+    skip: (page - 1) * limit,
+    take: limit
+  });
+
+  return {
+    users,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit)
+  };
+}
+
+/**
+ * Interface for user update data
+ */
+interface UserUpdateData {
+  username: string;
+  email: string;
+  role: UserRole;
+  emailVerified: boolean;
+}
+
+/**
+ * Update user data (admin function).
+ * @param userId - User ID to update.
+ * @param data - Update data.
+ * @returns Promise resolving to updated user data or null if not found.
+ */
+export async function updateUser(
+  userId: string, 
+  data: UserUpdateData
+): Promise<Pick<User, 'id' | 'username' | 'email' | 'role' | 'emailVerified' | 'createdAt' | 'updatedAt' | 'lastLoginAt'> | null> {
+  // Check if another user already uses the email/username using centralized helper
+  const existenceCheck = await checkUserExists(data.email, data.username, userId);
+  
+  if (existenceCheck.exists) {
+    if (existenceCheck.conflictField === 'email') {
+      throw new Error('Email đã được sử dụng bởi người dùng khác');
+    }
+    if (existenceCheck.conflictField === 'username') {
+      throw new Error('Tên đăng nhập đã được sử dụng bởi người dùng khác');
+    }
+  }
+
+  // Update user
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        username: data.username,
+        email: data.email,
+        role: data.role,
+        emailVerified: data.emailVerified
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        emailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true
+      }
+    });
+
+    return user;
+  } catch (error) {
+    // Handle case where user doesn't exist
+    return null;
+  }
+}
+
+/**
+ * Delete user by ID (admin function).
+ * @param userId - User ID to delete.
+ * @returns Promise resolving to success status.
+ */
+export async function deleteUser(userId: string): Promise<boolean> {
+  try {
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+    return true;
+  } catch (error) {
+    // Handle case where user doesn't exist
+    return false;
+  }
 } 

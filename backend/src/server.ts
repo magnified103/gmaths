@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import formbody from '@fastify/formbody';
 import multipart from '@fastify/multipart';
 import { authRoutes } from './routes/authRoutes';
+import { adminRoutes } from './routes/adminRoutes';
 
 const fastify = Fastify({
   logger: {
@@ -14,11 +15,23 @@ const fastify = Fastify({
  * Register plugins for CORS, form handling, and file uploads.
  */
 async function registerPlugins(): Promise<void> {
+  // Simplified CORS configuration for development
+  const corsOptions = process.env.NODE_ENV === 'production' 
+    ? {
+        origin: ['https://gmaths.edu.vn'],
+        credentials: true
+      }
+    : {
+        origin: true, // Allow all origins in development
+        credentials: true
+      };
+
   await fastify.register(cors, {
-    origin: process.env.NODE_ENV === 'production' 
-      ? ['https://gmaths.edu.vn'] 
-      : ['http://localhost:5173'],
-    credentials: true
+    ...corsOptions,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   });
 
   await fastify.register(formbody);
@@ -51,6 +64,9 @@ async function registerRoutes(): Promise<void> {
 
   // Register authentication routes
   await fastify.register(authRoutes, { prefix: '/api' });
+  
+  // Register admin routes
+  await fastify.register(adminRoutes, { prefix: '/api' });
 }
 
 /**

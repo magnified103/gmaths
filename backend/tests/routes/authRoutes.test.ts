@@ -138,9 +138,9 @@ describe('Authentication Routes', () => {
         payload: userData
       });
 
-      expect(response.statusCode).toBe(400);
+      expect(response.statusCode).toBe(409);
       const responseData = JSON.parse(response.body);
-      expect(responseData.error).toBe('Bad Request');
+      expect(responseData.error).toBe('Conflict Error');
       expect(responseData.message).toBe('Email đã được sử dụng');
     });
   });

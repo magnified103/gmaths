@@ -1,5 +1,4 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { ZodError } from 'zod';
 import {
   registerSchema,
   loginSchema,
@@ -20,63 +19,7 @@ import {
   verifyEmail
 } from '../services/authService';
 import { authenticateToken } from '../utils/authMiddleware';
-
-/**
- * Format Zod validation errors for Vietnamese error responses.
- * @param error - Zod validation error.
- * @returns Formatted error object.
- */
-function formatValidationError(error: ZodError) {
-  const errors = error.errors.map(err => ({
-    field: err.path.join('.'),
-    message: err.message
-  }));
-
-  return {
-    error: 'Validation Error',
-    message: 'Dữ liệu đầu vào không hợp lệ',
-    details: errors,
-    statusCode: 400
-  };
-}
-
-/**
- * Generic error handler for authentication routes.
- * @param error - Error object.
- * @param reply - Fastify reply object.
- */
-function handleError(error: any, reply: FastifyReply) {
-  if (error instanceof ZodError) {
-    return reply.status(400).send(formatValidationError(error));
-  }
-
-  // Known application errors (from services)
-  if (error.message && typeof error.message === 'string') {
-    const vietnameseErrors = [
-      'Email đã được sử dụng',
-      'Tên đăng nhập đã được sử dụng',
-      'Email hoặc mật khẩu không đúng',
-      'Token xác thực email không hợp lệ',
-      'Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn'
-    ];
-
-    if (vietnameseErrors.some(msg => error.message.includes(msg))) {
-      return reply.status(400).send({
-        error: 'Bad Request',
-        message: error.message,
-        statusCode: 400
-      });
-    }
-  }
-
-  // Unknown errors
-  console.error('Authentication error:', error);
-  return reply.status(500).send({
-    error: 'Internal Server Error',
-    message: 'Đã xảy ra lỗi hệ thống',
-    statusCode: 500
-  });
-}
+import { handleRouteError, successResponse } from '../utils/errorHandler';
 
 /**
  * Register authentication routes with Fastify instance.
@@ -94,13 +37,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         password: data.password
       });
 
-      return reply.status(201).send({
-        success: true,
-        message: 'Đăng ký thành công',
-        data: result
-      });
+      return reply.status(201).send(successResponse(result, 'Đăng ký thành công', 201));
     } catch (error) {
-      return handleError(error, reply);
+      return handleRouteError(error, reply, 'User Registration');
     }
   });
 
@@ -111,13 +50,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       
       const result = await loginUser(data);
 
-      return reply.send({
-        success: true,
-        message: 'Đăng nhập thành công',
-        data: result
-      });
+      return reply.send(successResponse(result, 'Đăng nhập thành công'));
     } catch (error) {
-      return handleError(error, reply);
+      return handleRouteError(error, reply, 'User Login');
     }
   });
 
@@ -128,13 +63,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       
       const result = await requestPasswordReset(data.email);
 
-      return reply.send({
-        success: true,
-        message: 'Nếu email tồn tại, liên kết đặt lại mật khẩu đã được gửi',
-        data: result
-      });
+      return reply.send(successResponse(result, 'Nếu email tồn tại, liên kết đặt lại mật khẩu đã được gửi'));
     } catch (error) {
-      return handleError(error, reply);
+      return handleRouteError(error, reply, 'Password Reset Request');
     }
   });
 
@@ -145,13 +76,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       
       const result = await resetPassword(data.token, data.password);
 
-      return reply.send({
-        success: true,
-        message: 'Mật khẩu đã được đặt lại thành công',
-        data: result
-      });
+      return reply.send(successResponse(result, 'Mật khẩu đã được đặt lại thành công'));
     } catch (error) {
-      return handleError(error, reply);
+      return handleRouteError(error, reply, 'Password Reset');
     }
   });
 
@@ -162,13 +89,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       
       const result = await verifyEmail(data.token);
 
-      return reply.send({
-        success: true,
-        message: 'Email đã được xác thực thành công',
-        data: result
-      });
+      return reply.send(successResponse(result, 'Email đã được xác thực thành công'));
     } catch (error) {
-      return handleError(error, reply);
+      return handleRouteError(error, reply, 'Email Verification');
     }
   });
 
@@ -185,15 +108,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         });
       }
 
-      return reply.send({
-        success: true,
-        message: 'Thông tin người dùng',
-        data: {
-          user: request.user
-        }
-      });
+      return reply.send(successResponse({ user: request.user }, 'Thông tin người dùng'));
     } catch (error) {
-      return handleError(error, reply);
+      return handleRouteError(error, reply, 'Get Current User');
     }
   });
 
@@ -205,12 +122,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       // For now, logout is handled client-side by removing the token
       // In the future, we could implement token blacklisting with Redis
       
-      return reply.send({
-        success: true,
-        message: 'Đăng xuất thành công'
-      });
+      return reply.send(successResponse({}, 'Đăng xuất thành công'));
     } catch (error) {
-      return handleError(error, reply);
+      return handleRouteError(error, reply, 'User Logout');
     }
   });
 } 

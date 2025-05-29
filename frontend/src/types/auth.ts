@@ -2,11 +2,17 @@
  * Authentication-related TypeScript interfaces
  */
 
+// Backend uses uppercase enum values
+export type UserRole = 'STUDENT' | 'ADMIN';
+
+// Frontend display uses lowercase for UI consistency
+export type DisplayRole = 'student' | 'admin';
+
 export interface User {
   id: string;
   email: string;
   username: string;
-  role: 'student' | 'admin';
+  role: UserRole; // Now matches backend
   createdAt: string;
   updatedAt: string;
 }

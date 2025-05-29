@@ -1,14 +1,54 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { useAuth } from '../hooks/useAuth';
+import { isAdmin } from '../api/auth';
 
 /**
  * Homepage component displaying welcome message in Vietnamese
- * Bootstrap phase - basic GMATHS introduction page
+ * Now with authentication status and role-based navigation
  */
 const HomePage: React.FC = () => {
+  const { user, isAuthenticated, logout, isLoggingOut } = useAuth();
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Authentication Status */}
+        {isAuthenticated && (
+          <div className="mb-8">
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Xin chào, {user?.username}!
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Vai trò: {user && isAdmin(user.role) ? 'Quản trị viên' : 'Học sinh'}
+                  </p>
+                </div>
+                <div className="flex space-x-4">
+                  {user && isAdmin(user.role) && (
+                    <Link
+                      to="/admin"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Khu vực quản trị
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => logout()}
+                    disabled={isLoggingOut}
+                    className="btn-secondary"
+                  >
+                    {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Hero Section */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
@@ -105,12 +145,28 @@ const HomePage: React.FC = () => {
               Tham gia cùng hàng nghìn học sinh đang sử dụng GMATHS để nâng cao kết quả học tập.
             </p>
             <div className="space-x-4">
-              <button className="btn-primary">
-                Đăng ký miễn phí
-              </button>
-              <button className="btn-secondary">
-                Tìm hiểu thêm
-              </button>
+              {!isAuthenticated ? (
+                <>
+                  <Link to="/register" className="btn-primary">
+                    Đăng ký miễn phí
+                  </Link>
+                  <Link to="/login" className="btn-secondary">
+                    Đăng nhập
+                  </Link>
+                </>
+              ) : (
+                <div className="text-gray-600">
+                  Bạn đã đăng nhập thành công! 
+                  {user && isAdmin(user.role) && (
+                    <>
+                      {' '}
+                      <Link to="/admin" className="text-blue-600 hover:text-blue-800">
+                        Truy cập khu vực quản trị
+                      </Link>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

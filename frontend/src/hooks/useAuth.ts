@@ -1,157 +1,61 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { authAPI, isAdmin } from '../api/auth';
 import type { LoginForm, RegistrationForm, PasswordResetForm, AuthResponse, User } from '../types/auth';
-
-// Mock API functions for development - will be replaced with real API calls in Step 1.2
-const mockAuthAPI = {
-  /**
-   * Mock login function that simulates API call
-   */
-  login: async (data: LoginForm): Promise<AuthResponse> => {
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-    
-    if (data.email === 'admin@gmaths.edu.vn' && data.password === 'admin123') {
-      return {
-        user: {
-          id: '1',
-          email: 'admin@gmaths.edu.vn',
-          username: 'admin',
-          role: 'admin',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        accessToken: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
-      };
-    }
-    
-    if (data.email === 'student@gmaths.edu.vn' && data.password === 'student123') {
-      return {
-        user: {
-          id: '2',
-          email: 'student@gmaths.edu.vn',
-          username: 'student',
-          role: 'student',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        accessToken: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
-      };
-    }
-    
-    throw new Error('Email hoặc mật khẩu không đúng');
-  },
-
-  /**
-   * Mock registration function that simulates API call
-   */
-  register: async (data: RegistrationForm): Promise<AuthResponse> => {
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
-    
-    if (data.email === 'existing@gmaths.edu.vn') {
-      throw new Error('Email này đã được sử dụng');
-    }
-    
-    return {
-      user: {
-        id: '3',
-        email: data.email,
-        username: data.username,
-        role: 'student',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
-    };
-  },
-
-  /**
-   * Mock password reset function that simulates API call
-   */
-  resetPassword: async (data: PasswordResetForm): Promise<{ message: string }> => {
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-    
-    if (data.email === 'notfound@gmaths.edu.vn') {
-      throw new Error('Không tìm thấy tài khoản với email này');
-    }
-    
-    return {
-      message: 'Liên kết đặt lại mật khẩu đã được gửi đến email của bạn',
-    };
-  },
-
-  /**
-   * Mock logout function
-   */
-  logout: async (): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    localStorage.removeItem('auth-token');
-  },
-
-  /**
-   * Mock function to get current user
-   */
-  getCurrentUser: async (): Promise<User | null> => {
-    const token = localStorage.getItem('auth-token');
-    if (!token) return null;
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Return mock user based on stored token
-    return {
-      id: '2',
-      email: 'student@gmaths.edu.vn',
-      username: 'student',
-      role: 'student',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  },
-};
 
 /**
  * Authentication hook providing login, registration, and user management
+ * Now connected to real backend API endpoints with navigation support.
  */
 export const useAuth = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Get current user query
   const { data: user, isLoading: isLoadingUser } = useQuery({
     queryKey: ['auth', 'user'],
-    queryFn: mockAuthAPI.getCurrentUser,
+    queryFn: authAPI.getCurrentUser,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false, // Don't retry if token is invalid
   });
 
   // Login mutation
   const loginMutation = useMutation({
-    mutationFn: mockAuthAPI.login,
+    mutationFn: authAPI.login,
     onSuccess: (data) => {
       localStorage.setItem('auth-token', data.accessToken);
       queryClient.setQueryData(['auth', 'user'], data.user);
+      
+      // Navigate to home page after login for all users
+      navigate('/');
     },
   });
 
   // Registration mutation
   const registerMutation = useMutation({
-    mutationFn: mockAuthAPI.register,
+    mutationFn: authAPI.register,
     onSuccess: (data) => {
       localStorage.setItem('auth-token', data.accessToken);
       queryClient.setQueryData(['auth', 'user'], data.user);
+      
+      // Navigate to home page after registration
+      navigate('/');
     },
   });
 
   // Password reset mutation
   const resetPasswordMutation = useMutation({
-    mutationFn: mockAuthAPI.resetPassword,
+    mutationFn: authAPI.resetPassword,
   });
 
   // Logout mutation
   const logoutMutation = useMutation({
-    mutationFn: mockAuthAPI.logout,
+    mutationFn: authAPI.logout,
     onSuccess: () => {
       queryClient.setQueryData(['auth', 'user'], null);
       queryClient.clear();
+      localStorage.removeItem('auth-token');
+      navigate('/login');
     },
   });
 
