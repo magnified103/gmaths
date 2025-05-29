@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import formbody from '@fastify/formbody';
 import multipart from '@fastify/multipart';
+import { authRoutes } from './routes/authRoutes';
 
 const fastify = Fastify({
   logger: {
@@ -22,6 +23,8 @@ async function registerPlugins(): Promise<void> {
 
   await fastify.register(formbody);
   await fastify.register(multipart);
+
+  // TODO: Add rate limiting back with proper TypeScript types
 }
 
 /**
@@ -37,7 +40,7 @@ async function registerRoutes(): Promise<void> {
     };
   });
 
-  // API routes
+  // API health check
   fastify.get('/api/health', async (request, reply) => {
     return { 
       status: 'ok',
@@ -45,6 +48,9 @@ async function registerRoutes(): Promise<void> {
       timestamp: new Date().toISOString()
     };
   });
+
+  // Register authentication routes
+  await fastify.register(authRoutes, { prefix: '/api' });
 }
 
 /**
@@ -61,6 +67,7 @@ async function start(): Promise<void> {
     await fastify.listen({ port, host });
     
     fastify.log.info(`Server listening on http://${host}:${port}`);
+    fastify.log.info('Authentication routes registered at /api/auth/*');
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
