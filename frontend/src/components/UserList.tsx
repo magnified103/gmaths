@@ -19,7 +19,7 @@ import {
 import type { UserListItem, UserFilters } from '../types/admin';
 import type { UserRole } from '../types/auth';
 import { fetchUsers, deleteUser } from '../api/admin';
-import { isAdmin, roleToDisplay } from '../api/auth';
+import { isAdmin } from '../api/auth';
 
 interface UserListProps {
   onCreateUser: () => void;

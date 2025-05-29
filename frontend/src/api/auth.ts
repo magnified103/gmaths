@@ -156,9 +156,9 @@ export const authAPI = {
         const errorMessage = errorData.message || 'Logout failed';
         throw new Error(errorMessage);
       }
-    } catch (error) {
+    } catch (_error) {
       // Logout on client side even if server call fails
-      console.warn('Server logout failed, proceeding with client logout:', error);
+      console.warn('Server logout failed, proceeding with client logout:', _error);
     } finally {
       localStorage.removeItem('auth-token');
     }
@@ -185,7 +185,7 @@ export const authAPI = {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       // If token is invalid, remove it and return null
       localStorage.removeItem('auth-token');
       return null;

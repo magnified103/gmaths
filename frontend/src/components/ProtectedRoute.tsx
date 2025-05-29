@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { isAdmin } from '../api/auth';
 import type { DisplayRole } from '../types/auth';
+import FullScreenLoader from './ui/FullScreenLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -26,14 +27,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Show loading state while checking authentication
   if (isLoadingUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-gray-600">Đang kiểm tra quyền truy cập...</p>
-        </div>
-      </div>
-    );
+    return <FullScreenLoader message="Đang kiểm tra quyền truy cập..." />;
   }
 
   // Redirect to login if not authenticated

@@ -49,7 +49,7 @@ export interface BulkUploadError {
   row: number;
   field: string;
   message: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 export interface CSVUserRow {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import BrandLogo from './ui/BrandLogo';
 
 /**
  * Footer component with Vietnamese content and GMATHS branding
@@ -12,11 +13,8 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand Section */}
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
-                <span className="text-white font-bold text-sm">GM</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">GMATHS</span>
+            <div className="mb-4">
+              <BrandLogo linkTo="/" />
             </div>
             <p className="text-gray-600 text-sm mb-4">
               Nền tảng học và kiểm tra trực tuyến hàng đầu cho Toán học và các môn STEAM.

@@ -9,7 +9,6 @@ import type {
   UserFilters,
   UserListResponse,
   BulkUploadResult,
-  CSVUserRow,
 } from '../types/admin';
 
 const API_BASE_URL = 'http://localhost:3000';

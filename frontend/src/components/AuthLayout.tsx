@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import BrandLogo from './ui/BrandLogo';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -16,18 +17,9 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) =>
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-primary-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* GMATHS Logo and Branding */}
-        <Link to="/" className="flex justify-center items-center space-x-4 mb-8">
-          {/* Logo placeholder - will be replaced with actual logo */}
-          <div className="w-16 h-16 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform">
-            <span className="text-white font-bold text-xl">GM</span>
-          </div>
-          <div className="text-center">
-            <span className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
-              GMATHS
-            </span>
-            <p className="text-sm text-gray-600 font-medium">Education Platform</p>
-          </div>
-        </Link>
+        <div className="flex justify-center items-center space-x-4 mb-8">
+          <BrandLogo variant="auth" size="lg" linkTo="/" />
+        </div>
         
         {/* Page Title */}
         <h2 className="text-center text-3xl font-bold text-gray-900 mb-2">

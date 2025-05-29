@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { authAPI, isAdmin } from '../api/auth';
-import type { LoginForm, RegistrationForm, PasswordResetForm, AuthResponse, User } from '../types/auth';
+import { authAPI } from '../api/auth';
 
 /**
  * Authentication hook providing login, registration, and user management

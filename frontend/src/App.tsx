@@ -4,10 +4,11 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import AdminDashboard from './pages/AdminDashboard';
 import AdminPage from './pages/AdminPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthGuard from './components/AuthGuard';
-import type { UserRole } from './types/auth';
+import FullScreenLoader from './components/ui/FullScreenLoader';
 import './index.css';
 
 // Create a client instance for TanStack Query
@@ -23,7 +24,7 @@ const queryClient = new QueryClient({
 /**
  * Main application component with React Router setup and TanStack Query provider
  * Provides routing structure and state management for the GMATHS platform
- * Now includes protected routes for role-based access control and auth guards
+ * Updated with extensible admin routes structure
  */
 function App() {
   return (
@@ -56,15 +57,86 @@ function App() {
                 </AuthGuard>
               } 
             />
+            
+            {/* Admin Routes - Protected and Extensible */}
             <Route 
               path="/admin" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/users" 
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminPage />
                 </ProtectedRoute>
               } 
             />
-            {/* Additional routes will be added in subsequent steps */}
+            
+            {/* Future Admin Routes - Ready for implementation */}
+            <Route 
+              path="/admin/questions" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <FullScreenLoader 
+                    variant="page"
+                    message="Ngân hàng câu hỏi - Tính năng đang được phát triển"
+                    showSpinner={false}
+                  />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/exams" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <FullScreenLoader 
+                    variant="page"
+                    message="Quản lý bài kiểm tra - Tính năng đang được phát triển"
+                    showSpinner={false}
+                  />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/posts" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <FullScreenLoader 
+                    variant="page"
+                    message="Bài viết & Thông báo - Tính năng đang được phát triển"
+                    showSpinner={false}
+                  />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/analytics" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <FullScreenLoader 
+                    variant="page"
+                    message="Thống kê & Báo cáo - Tính năng đang được phát triển"
+                    showSpinner={false}
+                  />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/settings" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <FullScreenLoader 
+                    variant="page"
+                    message="Cài đặt hệ thống - Tính năng đang được phát triển"
+                    showSpinner={false}
+                  />
+                </ProtectedRoute>
+              } 
+            />
           </Routes>
         </div>
       </Router>

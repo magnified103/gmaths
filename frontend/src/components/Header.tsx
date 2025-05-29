@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import BrandLogo from './ui/BrandLogo';
 
 /**
  * Header component with Vietnamese navigation and GMATHS branding
@@ -12,12 +13,7 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
           <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
-                <span className="text-white font-bold text-sm">GM</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">GMATHS</span>
-            </Link>
+            <BrandLogo linkTo="/" />
           </div>
 
           {/* Navigation */}
