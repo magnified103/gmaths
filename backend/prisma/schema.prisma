@@ -23,11 +23,97 @@ model User {
   lastLoginAt           DateTime?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  
+  // Relations
+  questionsCreated      Question[] @relation("QuestionCreator")
 
   @@map("users")
+}
+
+model Question {
+  id          String       @id @default(cuid())
+  type        QuestionType
+  content     String       @db.Text // LaTeX-enabled content
+  explanation String?      @db.Text // Optional explanation
+  points      Float        @default(1.0)
+  difficulty  Difficulty   @default(MEDIUM)
+  
+  // JSON field for type-specific data (options, blanks, etc.)
+  typeData    Json
+  
+  // Category and tagging
+  categoryId  String?
+  category    QuestionCategory? @relation(fields: [categoryId], references: [id])
+  tags        QuestionTag[]
+  
+  // Metadata
+  createdById String
+  createdBy   User      @relation("QuestionCreator", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Soft delete
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+
+  @@map("questions")
+}
+
+model QuestionCategory {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?    @db.Text
+  color       String?    // Hex color for UI
+  parentId    String?
+  parent      QuestionCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    QuestionCategory[] @relation("CategoryHierarchy")
+  
+  // Relations
+  questions   Question[]
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("question_categories")
+}
+
+model Tag {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  color     String?       // Hex color for UI
+  questions QuestionTag[]
+  
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("tags")
+}
+
+model QuestionTag {
+  questionId String
+  tagId      String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, tagId])
+  @@map("question_tags")
 }
 
 enum UserRole {
   STUDENT
   ADMIN
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  MULTIPLE_SELECT
+  TRUE_FALSE
+  FILL_BLANK
+  ESSAY
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
 } 

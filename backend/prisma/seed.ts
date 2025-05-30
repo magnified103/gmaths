@@ -14,6 +14,95 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 /**
+ * Seeds default question categories
+ */
+async function seedCategories() {
+  const existingCategories = await prisma.questionCategory.count();
+  if (existingCategories > 0) {
+    console.log('✅ Categories already exist, skipping creation');
+    return;
+  }
+
+  const categories = [
+    {
+      name: 'Đại số',
+      description: 'Các câu hỏi về đại số và phương trình',
+      color: '#3B82F6'
+    },
+    {
+      name: 'Hình học',
+      description: 'Các câu hỏi về hình học phẳng và không gian',
+      color: '#10B981'
+    },
+    {
+      name: 'Giải tích',
+      description: 'Các câu hỏi về giới hạn, đạo hàm và tích phân',
+      color: '#F59E0B'
+    },
+    {
+      name: 'Xác suất và thống kê',
+      description: 'Các câu hỏi về xác suất và thống kê',
+      color: '#8B5CF6'
+    },
+    {
+      name: 'Toán rời rạc',
+      description: 'Các câu hỏi về tổ hợp, đồ thị và logic',
+      color: '#EF4444'
+    },
+    {
+      name: 'Vật lý',
+      description: 'Các câu hỏi về cơ học, điện học và quang học',
+      color: '#06B6D4'
+    },
+    {
+      name: 'Hóa học',
+      description: 'Các câu hỏi về hóa học hữu cơ và vô cơ',
+      color: '#84CC16'
+    }
+  ];
+
+  for (const category of categories) {
+    await prisma.questionCategory.create({
+      data: category
+    });
+  }
+
+  console.log('✅ Created default question categories');
+}
+
+/**
+ * Seeds default question tags
+ */
+async function seedTags() {
+  const existingTags = await prisma.tag.count();
+  if (existingTags > 0) {
+    console.log('✅ Tags already exist, skipping creation');
+    return;
+  }
+
+  const tags = [
+    { name: 'Cơ bản', color: '#10B981' },
+    { name: 'Nâng cao', color: '#F59E0B' },
+    { name: 'Lớp 10', color: '#3B82F6' },
+    { name: 'Lớp 11', color: '#8B5CF6' },
+    { name: 'Lớp 12', color: '#EF4444' },
+    { name: 'Đại học', color: '#06B6D4' },
+    { name: 'Thi thử', color: '#84CC16' },
+    { name: 'THPT Quốc gia', color: '#F97316' },
+    { name: 'Olympic', color: '#EC4899' },
+    { name: 'Thực hành', color: '#6B7280' }
+  ];
+
+  for (const tag of tags) {
+    await prisma.tag.create({
+      data: tag
+    });
+  }
+
+  console.log('✅ Created default question tags');
+}
+
+/**
  * Main seeding function to populate the database with initial data.
  */
 async function main() {
@@ -26,29 +115,32 @@ async function main() {
     },
   });
 
-  if (existingAdmin) {
+  if (!existingAdmin) {
+    // Create default admin user
+    const adminPassword = await hashPassword('Admin@2024!');
+    
+    const adminUser = await prisma.user.create({
+      data: {
+        username: 'admin',
+        email: 'admin@gmaths.edu.vn',
+        password: adminPassword,
+        role: UserRole.ADMIN,
+        emailVerified: true, // Admin account is pre-verified
+      },
+    });
+
+    console.log('✅ Created default admin user:');
+    console.log(`   Email: ${adminUser.email}`);
+    console.log(`   Username: ${adminUser.username}`);
+    console.log(`   Password: Admin@2024!`);
+    console.log('   ⚠️  Please change the default password after first login!');
+  } else {
     console.log('✅ Admin user already exists, skipping creation');
-    return;
   }
 
-  // Create default admin user
-  const adminPassword = await hashPassword('Admin@2024!');
-  
-  const adminUser = await prisma.user.create({
-    data: {
-      username: 'admin',
-      email: 'admin@gmaths.edu.vn',
-      password: adminPassword,
-      role: UserRole.ADMIN,
-      emailVerified: true, // Admin account is pre-verified
-    },
-  });
-
-  console.log('✅ Created default admin user:');
-  console.log(`   Email: ${adminUser.email}`);
-  console.log(`   Username: ${adminUser.username}`);
-  console.log(`   Password: Admin@2024!`);
-  console.log('   ⚠️  Please change the default password after first login!');
+  // Seed question categories and tags
+  await seedCategories();
+  await seedTags();
 
   console.log('🌱 Database seeding completed successfully!');
 }

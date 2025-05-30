@@ -4,6 +4,7 @@ import formbody from '@fastify/formbody';
 import multipart from '@fastify/multipart';
 import { authRoutes } from './routes/authRoutes';
 import { adminRoutes } from './routes/adminRoutes';
+import { questionRoutes } from './routes/questionRoutes';
 
 const fastify = Fastify({
   logger: {
@@ -67,6 +68,9 @@ async function registerRoutes(): Promise<void> {
   
   // Register admin routes
   await fastify.register(adminRoutes, { prefix: '/api' });
+  
+  // Register question routes
+  await fastify.register(questionRoutes, { prefix: '/api/questions' });
 }
 
 /**
