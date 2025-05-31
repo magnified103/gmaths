@@ -1,14 +1,23 @@
 import React from 'react';
 import {
+  EyeIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon,
-  ClockIcon,
   TagIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
-import type { Question, QuestionType, Difficulty } from '../types/questions';
+import { RichTextDisplay } from './RichTextDisplay';
 import Button from './ui/Button';
 import StatusBadge from './ui/StatusBadge';
+import type { Question, QuestionType, Difficulty } from '../types/questions';
+import { 
+  getQuestionTypeText, 
+  getDifficultyInfo, 
+  getCategoryText, 
+  truncateText, 
+  formatQuestionDate,
+  getOptionLabel 
+} from '../utils/questionUtils';
 
 interface QuestionCardProps {
   question: Question;
@@ -40,69 +49,27 @@ export default function QuestionCard({
   className = '',
 }: QuestionCardProps) {
   /**
-   * Get question type display text
-   */
-  const getQuestionTypeText = (type: QuestionType): string => {
-    const map = {
-      'multiple-choice': 'Trắc nghiệm (1 đáp án)',
-      'multiple-select': 'Trắc nghiệm (nhiều đáp án)',
-      'true-false': 'Đúng/Sai',
-      'fill-blank': 'Điền khuyết',
-      'essay': 'Tự luận',
-    };
-    return map[type] || type;
-  };
-
-  /**
-   * Get difficulty display text and status
-   */
-  const getDifficultyInfo = (difficulty: Difficulty) => {
-    const map = {
-      easy: { text: 'Dễ', status: 'success' as const },
-      medium: { text: 'Trung bình', status: 'warning' as const },
-      hard: { text: 'Khó', status: 'error' as const },
-    };
-    return map[difficulty] || { text: difficulty, status: 'info' as const };
-  };
-
-  /**
-   * Get category display text
-   */
-  const getCategoryText = (category: string): string => {
-    const map: Record<string, string> = {
-      algebra: 'Đại số',
-      geometry: 'Hình học',
-      calculus: 'Giải tích',
-      statistics: 'Thống kê',
-      trigonometry: 'Lượng giác',
-    };
-    return map[category] || category;
-  };
-
-  /**
-   * Truncate text for display
-   */
-  const truncateText = (text: string, maxLength: number = 120) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
-
-  /**
    * Render question content based on type
    */
   const renderQuestionContent = () => {
     if (compact) {
       return (
-        <p className="text-sm text-gray-900 line-clamp-2">
-          {truncateText(question.content, 100)}
-        </p>
+        <div className="text-sm text-gray-900 line-clamp-2">
+          <RichTextDisplay 
+            content={truncateText(question.content, 100)}
+            className="prose-sm"
+          />
+        </div>
       );
     }
 
     return (
       <div className="space-y-3">
         <div className="text-sm text-gray-900">
-          {truncateText(question.content, 200)}
+          <RichTextDisplay 
+            content={truncateText(question.content, 200)}
+            className="prose-sm"
+          />
         </div>
 
         {/* Type-specific preview */}
@@ -111,8 +78,13 @@ export default function QuestionCard({
             {question.options.slice(0, 3).map((option, index) => (
               <div key={option.id} className="flex items-center text-xs text-gray-600">
                 <span className="w-4 h-4 rounded-full border border-gray-300 mr-2 flex-shrink-0"></span>
-                <span className="mr-2">{String.fromCharCode(65 + index)}.</span>
-                <span className="truncate">{truncateText(option.text, 50)}</span>
+                <span className="mr-2">{getOptionLabel(index)}.</span>
+                <span className="truncate">
+                  <RichTextDisplay 
+                    content={truncateText(option.text, 50)}
+                    className="prose-xs inline"
+                  />
+                </span>
               </div>
             ))}
             {question.options.length > 3 && (
@@ -197,7 +169,7 @@ export default function QuestionCard({
               <div className="flex items-center">
                 <ClockIcon className="h-3 w-3 mr-1" />
                 <span>
-                  {new Date(question.createdAt).toLocaleDateString('vi-VN')}
+                  {formatQuestionDate(question.createdAt)}
                 </span>
               </div>
             </div>
@@ -250,10 +222,10 @@ export default function QuestionCard({
             <div className="flex flex-wrap gap-1">
               {question.tags.map((tag, index) => (
                 <span
-                  key={index}
+                  key={typeof tag === 'string' ? index : tag.id}
                   className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full"
                 >
-                  {tag}
+                  {typeof tag === 'string' ? tag : tag.name}
                 </span>
               ))}
             </div>

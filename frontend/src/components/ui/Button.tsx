@@ -50,7 +50,11 @@ export default function Button({
 
   const LoadingSpinner = () => (
     <svg 
-      className={`animate-spin ${iconSizeClasses[size]} ${iconPosition === 'right' ? 'ml-2' : 'mr-2'}`} 
+      className={`animate-spin ${iconSizeClasses[size]} ${
+        (children && children.toString().trim().length > 0) 
+          ? (iconPosition === 'right' ? 'ml-2' : 'mr-2') 
+          : ''
+      }`} 
       xmlns="http://www.w3.org/2000/svg" 
       fill="none" 
       viewBox="0 0 24 24"
@@ -66,9 +70,10 @@ export default function Button({
     }
     
     if (icon) {
+      const hasText = children && children.toString().trim().length > 0;
       return (
         <span className={`${iconSizeClasses[size]} ${
-          iconPosition === 'right' ? 'ml-2' : 'mr-2'
+          hasText ? (iconPosition === 'right' ? 'ml-2' : 'mr-2') : ''
         }`}>
           {icon}
         </span>

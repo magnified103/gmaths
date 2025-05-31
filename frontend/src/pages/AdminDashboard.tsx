@@ -91,7 +91,7 @@ export default function AdminDashboard() {
     {
       title: 'Tạo bài kiểm tra',
       description: 'Thiết lập bài kiểm tra mới từ ngân hàng câu hỏi',
-      href: '/admin/exams',
+      href: '/admin/exams/create',
       icon: DocumentTextIcon,
       color: 'bg-purple-500',
     },

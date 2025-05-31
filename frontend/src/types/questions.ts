@@ -7,7 +7,7 @@ export type QuestionType = 'multiple-choice' | 'multiple-select' | 'true-false' 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
 /**
- * Base question interface that all question types extend
+ * Base question interface with common fields
  */
 export interface BaseQuestion {
   id: string;
@@ -15,12 +15,23 @@ export interface BaseQuestion {
   content: string; // LaTeX-enabled content
   explanation?: string;
   points: number;
-  category: string;
+  category: QuestionCategory | null; // Updated to match backend response
   difficulty: Difficulty;
-  tags?: string[];
+  tags?: Array<{
+    id: string;
+    name: string;
+    color?: string;
+    questionTag: {
+      questionId: string;
+      tagId: string;
+    };
+  }>; // Updated to match backend response
   createdAt: string;
   updatedAt: string;
-  createdBy: string;
+  createdBy: {
+    id: string;
+    username: string;
+  }; // Updated to match backend response
 }
 
 /**

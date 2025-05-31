@@ -1,19 +1,23 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
+import { decode } from 'html-entities';
 import {
-  MagnifyingGlassIcon,
   PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  EyeIcon,
+  MagnifyingGlassIcon,
   FunnelIcon,
-  ArrowDownTrayIcon,
   ArrowUpTrayIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
-import type { Question, QuestionFilters, QuestionType, Difficulty } from '../types/questions';
+import QuestionCard from './QuestionCard';
 import Button from './ui/Button';
-import EmptyState from './ui/EmptyState';
-import StatusBadge from './ui/StatusBadge';
 import FormField from './ui/FormField';
+import EmptyState from './ui/EmptyState';
+import type { Question, QuestionFilters, QuestionType, Difficulty } from '../types/questions';
+import { 
+  getQuestionTypeText, 
+  getDifficultyText, 
+  getDifficultyBadgeStatus,
+  truncateText as utilTruncateText
+} from '../utils/questionUtils';
 
 interface QuestionListProps {
   questions: Question[];
@@ -29,8 +33,7 @@ interface QuestionListProps {
 }
 
 /**
- * Question list component for the question bank interface
- * Displays questions with filtering, search, and management actions
+ * Question list component with search, filters, and bulk operations
  */
 export default function QuestionList({
   questions,
@@ -51,18 +54,24 @@ export default function QuestionList({
    * Handle search input change
    */
   const handleSearchChange = (value: string) => {
-    onFiltersChange?.({ ...filters, search: value });
+    onFiltersChange?.({
+      ...filters,
+      search: value,
+    });
   };
 
   /**
    * Handle filter change
    */
   const handleFilterChange = (key: keyof QuestionFilters, value: string) => {
-    onFiltersChange?.({ ...filters, [key]: value === 'all' ? undefined : value });
+    onFiltersChange?.({
+      ...filters,
+      [key]: value === 'all' ? undefined : value,
+    });
   };
 
   /**
-   * Toggle question selection
+   * Handle individual question selection
    */
   const handleQuestionSelect = (questionId: string, selected: boolean) => {
     const newSelected = new Set(selectedQuestions);
@@ -75,7 +84,7 @@ export default function QuestionList({
   };
 
   /**
-   * Select all questions
+   * Handle select all questions
    */
   const handleSelectAll = (selected: boolean) => {
     if (selected) {
@@ -83,20 +92,6 @@ export default function QuestionList({
     } else {
       setSelectedQuestions(new Set());
     }
-  };
-
-  /**
-   * Get question type display text
-   */
-  const getQuestionTypeText = (type: QuestionType): string => {
-    const map = {
-      'multiple-choice': 'Trắc nghiệm (1 đáp án)',
-      'multiple-select': 'Trắc nghiệm (nhiều đáp án)',
-      'true-false': 'Đúng/Sai',
-      'fill-blank': 'Điền khuyết',
-      'essay': 'Tự luận',
-    };
-    return map[type] || type;
   };
 
   /**
@@ -121,14 +116,6 @@ export default function QuestionList({
       hard: 'error' as const,
     };
     return map[difficulty] || 'info' as const;
-  };
-
-  /**
-   * Truncate text for display
-   */
-  const truncateText = (text: string, maxLength: number = 100) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
   };
 
   /**
@@ -272,190 +259,105 @@ export default function QuestionList({
               ]}
             />
 
-            <FormField
-              id="sortFilter"
-              label="Sắp xếp"
-              type="select"
-              value={`${filters.sortBy || 'createdAt'}-${filters.sortOrder || 'desc'}`}
-              onChange={(e) => {
-                const [sortBy, sortOrder] = e.target.value.split('-');
-                onFiltersChange?.({ 
-                  ...filters, 
-                  sortBy: sortBy as any, 
-                  sortOrder: sortOrder as 'asc' | 'desc' 
-                });
-              }}
-              options={[
-                { value: 'createdAt-desc', label: 'Mới nhất' },
-                { value: 'createdAt-asc', label: 'Cũ nhất' },
-                { value: 'category-asc', label: 'Chủ đề A-Z' },
-                { value: 'difficulty-asc', label: 'Độ khó: Dễ → Khó' },
-                { value: 'difficulty-desc', label: 'Độ khó: Khó → Dễ' },
-              ]}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sắp xếp theo
+              </label>
+              <select
+                value={`${filters.sortBy || 'createdAt'}-${filters.sortOrder || 'desc'}`}
+                onChange={(e) => {
+                  const [sortBy, sortOrder] = e.target.value.split('-');
+                  onFiltersChange?.({
+                    ...filters,
+                    sortBy: sortBy as any,
+                    sortOrder: sortOrder as any,
+                  });
+                }}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                <option value="createdAt-desc">Mới nhất</option>
+                <option value="createdAt-asc">Cũ nhất</option>
+                <option value="title-asc">Theo tên (A-Z)</option>
+                <option value="title-desc">Theo tên (Z-A)</option>
+                <option value="difficulty-asc">Độ khó tăng dần</option>
+                <option value="difficulty-desc">Độ khó giảm dần</option>
+              </select>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Questions List */}
-      {questions.length === 0 ? (
-        <EmptyState
-          icon={
-            <svg className="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-          }
-          title="Chưa có câu hỏi nào"
-          description="Bắt đầu bằng cách tạo câu hỏi mới hoặc nhập từ tệp CSV"
-          action={{
-            label: 'Tạo câu hỏi đầu tiên',
-            onClick: onCreateQuestion,
-            variant: 'primary',
-            icon: <PlusIcon className="h-4 w-4" />,
-          }}
-        />
-      ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          {/* Bulk Actions */}
-          {selectedCount > 0 && (
-            <div className="bg-blue-50 border-b border-blue-200 px-4 py-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-blue-700">
-                  Đã chọn {selectedCount} câu hỏi
-                </p>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {/* Handle bulk delete */}}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    Xóa đã chọn
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedQuestions(new Set())}
-                  >
-                    Bỏ chọn
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Table Header */}
-          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-            <div className="flex items-center">
-              <div className="flex items-center mr-4">
+      {/* Questions Grid */}
+      <div className="space-y-4">
+        {/* Bulk Actions */}
+        {selectedCount > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
                 <input
                   type="checkbox"
-                  checked={selectedCount === questions.length && questions.length > 0}
+                  checked={selectedCount === questions.length}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
+                <span className="text-sm font-medium text-blue-900">
+                  Đã chọn {selectedCount} câu hỏi
+                </span>
               </div>
-              <div className="grid grid-cols-12 gap-4 w-full text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="col-span-5">Câu hỏi</div>
-                <div className="col-span-2">Loại</div>
-                <div className="col-span-2">Chủ đề</div>
-                <div className="col-span-1">Độ khó</div>
-                <div className="col-span-1">Điểm</div>
-                <div className="col-span-1">Hành động</div>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSelectedQuestions(new Set())}
+                >
+                  Bỏ chọn
+                </Button>
+                
+                {onExportQuestions && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={onExportQuestions}
+                  >
+                    Xuất đã chọn
+                  </Button>
+                )}
               </div>
             </div>
           </div>
+        )}
 
-          {/* Questions */}
-          <div className="divide-y divide-gray-200">
+        {/* Questions List */}
+        {questions.length === 0 ? (
+          <EmptyState
+            title="Chưa có câu hỏi nào"
+            description="Tạo câu hỏi đầu tiên để bắt đầu xây dựng ngân hàng câu hỏi của bạn."
+            action={{
+              label: 'Tạo câu hỏi',
+              onClick: onCreateQuestion,
+              variant: 'primary',
+              icon: <PlusIcon className="h-4 w-4" />,
+            }}
+          />
+        ) : (
+          <div className="grid gap-4">
             {questions.map((question) => (
-              <div key={question.id} className="px-4 py-4 hover:bg-gray-50">
-                <div className="flex items-center">
-                  <div className="flex items-center mr-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedQuestions.has(question.id)}
-                      onChange={(e) => handleQuestionSelect(question.id, e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                  </div>
-                  <div className="grid grid-cols-12 gap-4 w-full">
-                    {/* Question Content */}
-                    <div className="col-span-5">
-                      <p className="text-sm font-medium text-gray-900">
-                        {truncateText(question.content, 80)}
-                      </p>
-                      {question.explanation && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Có giải thích
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Type */}
-                    <div className="col-span-2">
-                      <span className="text-sm text-gray-600">
-                        {getQuestionTypeText(question.type)}
-                      </span>
-                    </div>
-
-                    {/* Category */}
-                    <div className="col-span-2">
-                      <span className="text-sm text-gray-600 capitalize">
-                        {question.category}
-                      </span>
-                    </div>
-
-                    {/* Difficulty */}
-                    <div className="col-span-1">
-                      <StatusBadge
-                        status={getDifficultyBadgeStatus(question.difficulty)}
-                        label={getDifficultyText(question.difficulty)}
-                        size="sm"
-                      />
-                    </div>
-
-                    {/* Points */}
-                    <div className="col-span-1">
-                      <span className="text-sm text-gray-900 font-medium">
-                        {question.points}
-                      </span>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="col-span-1">
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={<EyeIcon className="h-4 w-4" />}
-                          onClick={() => onPreviewQuestion(question)}
-                          title="Xem trước"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={<PencilIcon className="h-4 w-4" />}
-                          onClick={() => onEditQuestion(question)}
-                          title="Chỉnh sửa"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={<TrashIcon className="h-4 w-4" />}
-                          onClick={() => onDeleteQuestion(question)}
-                          className="text-red-600 hover:text-red-700"
-                          title="Xóa"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <QuestionCard
+                key={question.id}
+                question={question}
+                onEdit={onEditQuestion}
+                onDelete={onDeleteQuestion}
+                onPreview={onPreviewQuestion}
+                selectable={true}
+                selected={selectedQuestions.has(question.id)}
+                onSelect={(selected) => handleQuestionSelect(question.id, selected)}
+                showActions={true}
+              />
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 } 

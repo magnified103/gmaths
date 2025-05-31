@@ -155,7 +155,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         {/* Page content */}
-        <main className="flex-1">
+        <main className="flex-1 p-6">
           {children}
         </main>
       </div>

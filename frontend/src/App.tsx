@@ -6,6 +6,8 @@ import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminPage from './pages/AdminPage';
+import QuestionsPage from './pages/QuestionsPage';
+import { ExamBuilderPage } from './pages/ExamBuilderPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthGuard from './components/AuthGuard';
 import FullScreenLoader from './components/ui/FullScreenLoader';
@@ -81,11 +83,7 @@ function App() {
               path="/admin/questions" 
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <FullScreenLoader 
-                    variant="page"
-                    message="Ngân hàng câu hỏi - Tính năng đang được phát triển"
-                    showSpinner={false}
-                  />
+                  <QuestionsPage />
                 </ProtectedRoute>
               } 
             />
@@ -95,7 +93,27 @@ function App() {
                 <ProtectedRoute requiredRole="admin">
                   <FullScreenLoader 
                     variant="page"
-                    message="Quản lý bài kiểm tra - Tính năng đang được phát triển"
+                    message="Danh sách bài thi - Tính năng đang được phát triển"
+                    showSpinner={false}
+                  />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/exams/create" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ExamBuilderPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/exams/:id/edit" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <FullScreenLoader 
+                    variant="page"
+                    message="Chỉnh sửa bài thi - Tính năng đang được phát triển"
                     showSpinner={false}
                   />
                 </ProtectedRoute>

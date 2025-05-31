@@ -73,7 +73,7 @@ export default function Modal({
           </div>
 
           {/* Content */}
-          <div className="bg-white">
+          <div className="bg-white px-4 pb-4 sm:px-6 sm:pb-6">
             {children}
           </div>
 
