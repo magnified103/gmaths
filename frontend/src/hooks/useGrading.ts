@@ -14,14 +14,7 @@ import {
   regradeExam,
   exportExamResults,
 } from '../api/grading';
-import type {
-  ExamResult,
-  LeaderboardEntry,
-  PerformanceAnalytics,
-  StudentExamHistory,
-  GradingDashboardStats,
-  RegradeResult,
-} from '../api/grading';
+// Types are imported directly where used to avoid unused import warnings
 
 /**
  * Hook to get detailed exam results for a specific student (Admin only)
@@ -115,7 +108,7 @@ export const useRegradeExam = () => {
 
   return useMutation({
     mutationFn: regradeExam,
-    onSuccess: (data, examId) => {
+    onSuccess: (_data, examId) => {
       // Invalidate related queries after successful regrade
       queryClient.invalidateQueries({ queryKey: ['examResults', examId] });
       queryClient.invalidateQueries({ queryKey: ['examLeaderboard', examId] });

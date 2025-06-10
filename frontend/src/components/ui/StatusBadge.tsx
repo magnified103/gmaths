@@ -1,4 +1,4 @@
-import React from 'react';
+// React import removed - using JSX without explicit React reference
 
 interface StatusBadgeProps {
   status: 'admin' | 'student' | 'verified' | 'unverified' | 'active' | 'inactive' | 'success' | 'error' | 'warning' | 'info';

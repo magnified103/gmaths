@@ -1,4 +1,4 @@
-import React from 'react';
+// React import removed - using JSX without explicit React reference
 import LoadingSpinner from './LoadingSpinner';
 
 interface FullScreenLoaderProps {

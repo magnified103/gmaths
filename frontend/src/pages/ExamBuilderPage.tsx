@@ -6,9 +6,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { ExamForm } from '../components/ExamForm';
-import { QuestionSelector } from '../components/QuestionSelector';
-import { ExamPreview } from '../components/ExamPreview';
+import { ExamForm } from '../components/exam/ExamForm';
+import { QuestionSelector } from '../components/question/QuestionSelector';
+import { ExamPreview } from '../components/exam/ExamPreview';
 import { useQuestions } from '../hooks/useQuestions';
 import { useCreateExam } from '../hooks/useExams';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -117,7 +117,7 @@ export const ExamBuilderPage: React.FC = () => {
     }
     
     try {
-      const result = await createExamMutation.mutateAsync(examData);
+      await createExamMutation.mutateAsync(examData);
       alert('Bài thi đã được tạo thành công!');
       navigate('/admin/exams');
     } catch (error) {

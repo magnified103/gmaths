@@ -1,6 +1,6 @@
 import React from 'react';
-import AuthLayout from '../components/AuthLayout';
-import RegistrationForm from '../components/RegistrationForm';
+import AuthLayout from '../components/auth/AuthLayout';
+import RegistrationForm from '../components/auth/RegistrationForm';
 
 /**
  * Registration page with authentication layout and registration form

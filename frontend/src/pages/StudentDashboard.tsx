@@ -10,7 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
 import { useTakeableExams } from '../hooks/useExams';
-import Layout from '../components/Layout';
+import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 interface QuickStatCard {

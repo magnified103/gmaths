@@ -3,12 +3,12 @@
  * Provides editing capabilities for existing exams with validation
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { ExamForm } from '../components/ExamForm';
-import { QuestionSelector } from '../components/QuestionSelector';
-import { ExamPreview } from '../components/ExamPreview';
+import { ExamForm } from '../components/exam/ExamForm';
+import { QuestionSelector } from '../components/question/QuestionSelector';
+import { ExamPreview } from '../components/exam/ExamPreview';
 import { useExam, useUpdateExam } from '../hooks/useExams';
 import { useQuestions } from '../hooks/useQuestions';
 import AdminLayout from '../components/admin/AdminLayout';

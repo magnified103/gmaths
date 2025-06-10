@@ -6,16 +6,11 @@
 import React, { useState } from 'react';
 import {
   useGradingDashboardStats,
-  useRegradeExam,
-  useExportExamResults,
 } from '../../hooks/useGrading';
 import {
-  ChartBarIcon,
-  DocumentArrowDownIcon,
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ArrowPathIcon,
   ExclamationTriangleIcon,
   UserGroupIcon,
   TrophyIcon,
@@ -90,44 +85,39 @@ export const GradingDashboard: React.FC = () => {
 
   // API hooks
   const { data: stats, isLoading: statsLoading, error: statsError } = useGradingDashboardStats();
-  const regradeExam = useRegradeExam();
-  const exportResults = useExportExamResults();
+  // const regradeExam = useRegradeExam(); // For future implementation
+  // const exportResults = useExportExamResults(); // For future implementation
 
-  /**
-   * Handle exam regrade
-   */
-  const handleRegrade = async (examId: string) => {
-    try {
-      const result = await regradeExam.mutateAsync(examId);
-      setNotification({
-        type: 'success',
-        message: `Đã chấm lại thành công ${result.regradedCount}/${result.totalSubmissions} bài thi`,
-      });
-    } catch (error) {
-      setNotification({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Lỗi khi chấm lại bài thi',
-      });
-    }
-  };
+  // Future implementation: Exam regrade and export functionality
+  // const handleRegrade = async (examId: string) => {
+  //   try {
+  //     const result = await regradeExam.mutateAsync(examId);
+  //     setNotification({
+  //       type: 'success',
+  //       message: `Đã chấm lại thành công ${result.regradedCount}/${result.totalSubmissions} bài thi`,
+  //     });
+  //   } catch (error) {
+  //     setNotification({
+  //       type: 'error',
+  //       message: error instanceof Error ? error.message : 'Lỗi khi chấm lại bài thi',
+  //     });
+  //   }
+  // };
 
-  /**
-   * Handle exam results export
-   */
-  const handleExport = async (examId: string) => {
-    try {
-      await exportResults.mutateAsync(examId);
-      setNotification({
-        type: 'success',
-        message: 'Đã xuất kết quả thành công',
-      });
-    } catch (error) {
-      setNotification({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Lỗi khi xuất kết quả',
-      });
-    }
-  };
+  // const handleExport = async (examId: string) => {
+  //   try {
+  //     await exportResults.mutateAsync(examId);
+  //     setNotification({
+  //       type: 'success',
+  //       message: 'Đã xuất kết quả thành công',
+  //     });
+  //   } catch (error) {
+  //     setNotification({
+  //       type: 'error',
+  //       message: error instanceof Error ? error.message : 'Lỗi khi xuất kết quả',
+  //     });
+  //   }
+  // };
 
   /**
    * Clear notification

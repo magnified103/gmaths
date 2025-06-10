@@ -4,14 +4,14 @@
  * Refactored to use extensible AdminLayout
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { UserPlusIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
-import { useQueryClient } from '@tanstack/react-query';
+// useQueryClient import removed - not used in this component
 import AdminLayout from '../components/admin/AdminLayout';
-import UserList from '../components/UserList';
-import UserForm from '../components/UserForm';
-import BulkUpload from '../components/BulkUpload';
-import ErrorBoundary from '../components/ErrorBoundary';
+import UserList from '../components/user/UserList';
+import UserForm from '../components/user/UserForm';
+import BulkUpload from '../components/user/BulkUpload';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import Button from '../components/ui/Button';
 import type { UserListItem } from '../types/admin';
 
@@ -25,7 +25,7 @@ export default function AdminPage() {
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
 
-  const _queryClient = useQueryClient();
+  // const queryClient = useQueryClient(); // Not used in current implementation
 
   /**
    * Opens user form for creating new user.

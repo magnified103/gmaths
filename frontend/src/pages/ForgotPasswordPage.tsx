@@ -1,6 +1,6 @@
 import React from 'react';
-import AuthLayout from '../components/AuthLayout';
-import PasswordResetForm from '../components/PasswordResetForm';
+import AuthLayout from '../components/auth/AuthLayout';
+import PasswordResetForm from '../components/auth/PasswordResetForm';
 
 /**
  * Forgot password page with authentication layout and password reset form

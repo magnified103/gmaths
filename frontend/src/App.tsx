@@ -13,8 +13,8 @@ import ExamListPage from './pages/ExamListPage';
 import ExamEditPage from './pages/ExamEditPage';
 import ExamTakingPage from './pages/ExamTakingPage';
 import StudentExamListPage from './pages/StudentExamListPage';
-import ProtectedRoute from './components/ProtectedRoute';
-import AuthGuard from './components/AuthGuard';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import AuthGuard from './components/auth/AuthGuard';
 import FullScreenLoader from './components/ui/FullScreenLoader';
 import './index.css';
 

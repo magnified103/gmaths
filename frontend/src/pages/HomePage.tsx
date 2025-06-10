@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import Layout from '../components/Layout';
+import Layout from '../components/layout/Layout';
 import { useAuth } from '../hooks/useAuth';
 import { isAdmin } from '../api/auth';
 

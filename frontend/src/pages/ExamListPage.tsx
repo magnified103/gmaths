@@ -3,7 +3,7 @@
  * Provides listing, filtering, search, and management of all exams
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   PlusIcon, 

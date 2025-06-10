@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MagnifyingGlassIcon,
@@ -8,7 +8,7 @@ import {
   HomeIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline';
-import { ExamCard } from '../components/ExamCard';
+import { ExamCard } from '../components/exam/ExamCard';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import EmptyState from '../components/ui/EmptyState';
 import { useTakeableExams } from '../hooks/useExams';

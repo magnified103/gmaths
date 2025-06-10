@@ -19,11 +19,7 @@ import {
 } from '../api/exams';
 import type { 
   ExamFilters, 
-  ExamListResponse, 
-  CreateExamRequest, 
-  UpdateExamRequest,
-  ExamAvailability,
-  ExamWithQuestions
+  ExamListResponse
 } from '../types/exams';
 
 /**

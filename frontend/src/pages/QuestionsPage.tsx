@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AdminLayout from '../components/admin/AdminLayout';
-import QuestionList from '../components/QuestionList';
-import QuestionForm from '../components/QuestionForm';
-import QuestionPreview from '../components/QuestionPreview';
+import QuestionList from '../components/question/QuestionList';
+import QuestionForm from '../components/question/QuestionForm';
+import QuestionPreview from '../components/question/QuestionPreview';
 import Alert from '../components/ui/Alert';
 import type { Question, QuestionFilters } from '../types/questions';
 import { fetchQuestions, deleteQuestion } from '../api/questions';

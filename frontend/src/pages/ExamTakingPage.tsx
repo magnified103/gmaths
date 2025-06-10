@@ -1,5 +1,5 @@
-import React from 'react';
-import { ExamInterface } from '../components/ExamInterface';
+// React import removed - using JSX without explicit React reference
+import { ExamInterface } from '../components/exam/ExamInterface';
 
 /**
  * Exam taking page that wraps the ExamInterface component
