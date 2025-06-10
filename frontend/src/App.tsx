@@ -7,7 +7,12 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminPage from './pages/AdminPage';
 import QuestionsPage from './pages/QuestionsPage';
+import StudentDashboard from './pages/StudentDashboard';
 import { ExamBuilderPage } from './pages/ExamBuilderPage';
+import ExamListPage from './pages/ExamListPage';
+import ExamEditPage from './pages/ExamEditPage';
+import ExamTakingPage from './pages/ExamTakingPage';
+import StudentExamListPage from './pages/StudentExamListPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthGuard from './components/AuthGuard';
 import FullScreenLoader from './components/ui/FullScreenLoader';
@@ -26,7 +31,7 @@ const queryClient = new QueryClient({
 /**
  * Main application component with React Router setup and TanStack Query provider
  * Provides routing structure and state management for the GMATHS platform
- * Updated with extensible admin routes structure
+ * Updated with complete exam management routes and student dashboard
  */
 function App() {
   return (
@@ -60,6 +65,68 @@ function App() {
               } 
             />
             
+            {/* Student Routes - Organized with Dashboard */}
+            <Route 
+              path="/student" 
+              element={
+                <ProtectedRoute>
+                  <StudentDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/student/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <StudentDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/student/exams" 
+              element={
+                <ProtectedRoute>
+                  <StudentExamListPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Student Feature Routes - Placeholders for future implementation */}
+            <Route 
+              path="/student/results" 
+              element={
+                <ProtectedRoute>
+                  <FullScreenLoader 
+                    variant="page"
+                    message="Kết quả thi - Tính năng đang được phát triển"
+                    showSpinner={false}
+                  />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/student/announcements" 
+              element={
+                <ProtectedRoute>
+                  <FullScreenLoader 
+                    variant="page"
+                    message="Thông báo - Tính năng đang được phát triển"
+                    showSpinner={false}
+                  />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Exam Taking Route - Accessible by all authenticated users */}
+            <Route 
+              path="/exams/:examId/take" 
+              element={
+                <ProtectedRoute>
+                  <ExamTakingPage />
+                </ProtectedRoute>
+              } 
+            />
+            
             {/* Admin Routes - Protected and Extensible */}
             <Route 
               path="/admin" 
@@ -78,7 +145,7 @@ function App() {
               } 
             />
             
-            {/* Future Admin Routes - Ready for implementation */}
+            {/* Question Management Routes */}
             <Route 
               path="/admin/questions" 
               element={
@@ -87,15 +154,13 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            
+            {/* Exam Management Routes - Fully Implemented */}
             <Route 
               path="/admin/exams" 
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <FullScreenLoader 
-                    variant="page"
-                    message="Danh sách bài thi - Tính năng đang được phát triển"
-                    showSpinner={false}
-                  />
+                  <ExamListPage />
                 </ProtectedRoute>
               } 
             />
@@ -111,14 +176,12 @@ function App() {
               path="/admin/exams/:id/edit" 
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <FullScreenLoader 
-                    variant="page"
-                    message="Chỉnh sửa bài thi - Tính năng đang được phát triển"
-                    showSpinner={false}
-                  />
+                  <ExamEditPage />
                 </ProtectedRoute>
               } 
             />
+            
+            {/* Future Admin Routes - Ready for implementation */}
             <Route 
               path="/admin/posts" 
               element={

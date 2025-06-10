@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Users, Settings, Eye, Lock, Shield } from 'lucide-react';
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { 
   CreateExamRequest, 
   UpdateExamRequest, 
@@ -125,7 +126,8 @@ export const ExamForm: React.FC<ExamFormProps> = ({
       }
     }
 
-    if (formData.questionIds.length === 0) {
+    // Only validate questions for edit mode, not create mode (questions selected in step 2)
+    if (mode === 'edit' && formData.questionIds.length === 0) {
       newErrors.questions = 'Phải chọn ít nhất một câu hỏi';
     }
 
@@ -456,18 +458,35 @@ export const ExamForm: React.FC<ExamFormProps> = ({
         </div>
       </div>
 
-      {/* Question Selection Status */}
-      <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
-        <div className="flex items-center">
-          <Users className="h-5 w-5 text-blue-600 mr-2" />
-          <span className="text-sm font-medium text-blue-900">
-            Đã chọn {formData.questionIds.length} câu hỏi
-          </span>
+      {/* Question Selection Status - Only show in edit mode */}
+      {mode === 'edit' && (
+        <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+          <div className="flex items-center">
+            <Users className="h-5 w-5 text-blue-600 mr-2" />
+            <span className="text-sm font-medium text-blue-900">
+              Đã chọn {formData.questionIds.length} câu hỏi
+            </span>
+          </div>
+          {errors.questions && (
+            <p className="mt-1 text-sm text-red-600">{errors.questions}</p>
+          )}
         </div>
-        {errors.questions && (
-          <p className="mt-1 text-sm text-red-600">{errors.questions}</p>
-        )}
-      </div>
+      )}
+
+      {/* Next Step Info - Only show in create mode */}
+      {mode === 'create' && (
+        <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+          <div className="flex items-center">
+            <Users className="h-5 w-5 text-blue-600 mr-2" />
+            <span className="text-sm font-medium text-blue-900">
+              Bước tiếp theo: Chọn câu hỏi cho bài thi
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-blue-700">
+            Sau khi hoàn thành thông tin cơ bản, bạn sẽ chọn câu hỏi từ ngân hàng câu hỏi
+          </p>
+        </div>
+      )}
 
       {/* Form Actions */}
       <div className="flex items-center justify-end space-x-4 pt-6 border-t">
@@ -495,7 +514,14 @@ export const ExamForm: React.FC<ExamFormProps> = ({
             </>
           ) : (
             <>
-              {mode === 'create' ? 'Tạo bài thi' : 'Cập nhật bài thi'}
+              {mode === 'create' ? (
+                <>
+                  Tiếp tục đến chọn câu hỏi
+                  <ChevronRightIcon className="ml-2 h-4 w-4" />
+                </>
+              ) : (
+                'Cập nhật bài thi'
+              )}
             </>
           )}
         </button>

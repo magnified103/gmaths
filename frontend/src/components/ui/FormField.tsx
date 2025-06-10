@@ -17,7 +17,7 @@ interface FormFieldProps {
   onTogglePassword?: () => void;
   disabled?: boolean;
   className?: string;
-  register?: (name: string) => object; // For react-hook-form register function
+  register?: any; // More flexible type for react-hook-form register function
 }
 
 /**
@@ -42,80 +42,89 @@ export default function FormField({
   className = '',
   register,
 }: FormFieldProps) {
-  const baseInputClasses = `
-    block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm 
-    focus:ring-blue-500 focus:border-blue-500 
-    disabled:bg-gray-50 disabled:text-gray-500
-    ${error ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}
-    ${className}
-  `.trim();
+  const renderInput = () => {
+    const baseClasses = `
+      w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+      ${error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'}
+      ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}
+    `;
 
-  const inputProps = {
-    id,
-    placeholder,
-    disabled,
-    className: baseInputClasses,
-    ...(register ? register(id) : { value, onChange }),
+    if (type === 'select' && options) {
+      return (
+        <select
+          id={id}
+          className={baseClasses}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          required={required}
+          {...(register ? register(id) : {})}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (type === 'password' && showPasswordToggle) {
+      return (
+        <div className="relative">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            id={id}
+            className={`${baseClasses} pr-10`}
+            placeholder={placeholder}
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+            required={required}
+            {...(register ? register(id) : {})}
+          />
+          <button
+            type="button"
+            className="absolute inset-y-0 right-0 flex items-center pr-3"
+            onClick={onTogglePassword}
+          >
+            {showPassword ? (
+              <EyeSlashIcon className="h-4 w-4 text-gray-400" />
+            ) : (
+              <EyeIcon className="h-4 w-4 text-gray-400" />
+            )}
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <input
+        type={type}
+        id={id}
+        className={baseClasses}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        required={required}
+        {...(register ? register(id) : {})}
+      />
+    );
   };
 
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+    <div className={className}>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
-      
-      <div className="mt-1 relative">
-        {type === 'select' ? (
-          <select {...inputProps}>
-            {options?.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <>
-            <input
-              {...inputProps}
-              type={showPasswordToggle && showPassword ? 'text' : type}
-              className={showPasswordToggle ? `${baseInputClasses} pr-10` : baseInputClasses}
-            />
-            {showPasswordToggle && onTogglePassword && (
-              <button
-                type="button"
-                onClick={onTogglePassword}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 hover:text-primary-600 transition-colors"
-                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-              >
-                {showPassword ? (
-                  <EyeSlashIcon className="h-5 w-5 text-gray-400" />
-                ) : (
-                  <EyeIcon className="h-5 w-5 text-gray-400" />
-                )}
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Error Message */}
+      {renderInput()}
       {error && (
-        <div className="mt-2 flex items-center">
-          <svg className="w-4 h-4 text-red-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-sm text-red-600" role="alert">
-            {error}
-          </p>
-        </div>
+        <p className="mt-1 text-sm text-red-600">{error}</p>
       )}
-
-      {/* Help Text */}
       {helpText && !error && (
-        <p className="mt-1 text-sm text-gray-500">
-          {helpText}
-        </p>
+        <p className="mt-1 text-sm text-gray-500">{helpText}</p>
       )}
     </div>
   );

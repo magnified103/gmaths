@@ -1,42 +1,26 @@
 /**
- * Questions API client functions for question management
+ * Question API functions for frontend
+ * Handles CRUD operations for questions with TypeScript validation
  */
 
-import type {
-  Question,
-  QuestionCreateForm,
-  QuestionUpdateForm,
+import type { 
+  Question, 
+  QuestionCreateForm, 
+  QuestionUpdateForm, 
+  QuestionListResponse, 
   QuestionFilters,
-  QuestionListResponse,
-  QuestionCategory,
   QuestionValidation,
-  QuestionType,
+  QuestionCategory,
 } from '../types/questions';
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 /**
- * Converts frontend QuestionCreateForm to backend CreateQuestionRequest format
+ * Prepare question data for backend API (types are now consistent)
  * @param formData - Frontend form data
  * @returns Backend request format with typeData
  */
-function convertToBackendFormat(formData: QuestionCreateForm) {
-  // Map frontend type names to backend enum values
-  const typeMapping: Record<QuestionType, string> = {
-    'multiple-choice': 'MULTIPLE_CHOICE',
-    'multiple-select': 'MULTIPLE_SELECT',
-    'true-false': 'TRUE_FALSE',
-    'fill-blank': 'FILL_BLANK',
-    'essay': 'ESSAY'
-  };
-
-  // Map frontend difficulty to backend enum
-  const difficultyMapping: Record<string, string> = {
-    'easy': 'EASY',
-    'medium': 'MEDIUM', 
-    'hard': 'HARD'
-  };
-
+function prepareQuestionData(formData: QuestionCreateForm) {
   // Prepare type-specific data based on question type
   let typeData: any = {};
 
@@ -88,11 +72,11 @@ function convertToBackendFormat(formData: QuestionCreateForm) {
   }
 
   return {
-    type: typeMapping[formData.type],
+    type: formData.type, // No conversion needed - types are consistent
     content: formData.content,
     explanation: formData.explanation,
     points: formData.points,
-    difficulty: difficultyMapping[formData.difficulty],
+    difficulty: formData.difficulty, // No conversion needed
     categoryId: formData.category, // Frontend uses 'category', backend expects 'categoryId'
     tagIds: formData.tags || [],
     typeData
@@ -197,7 +181,7 @@ export async function fetchQuestion(questionId: string): Promise<Question> {
  * @returns Promise resolving to created question data.
  */
 export async function createQuestion(questionData: QuestionCreateForm): Promise<Question> {
-  const backendData = convertToBackendFormat(questionData);
+  const backendData = prepareQuestionData(questionData);
   const response = await fetch(`${API_BASE_URL}/api/questions`, {
     method: 'POST',
     headers: {
@@ -225,7 +209,7 @@ export async function createQuestion(questionData: QuestionCreateForm): Promise<
 export async function updateQuestion(questionId: string, questionData: QuestionUpdateForm): Promise<Question> {
   // Remove the id from the data and convert to backend format
   const { id, ...formData } = questionData;
-  const backendData = convertToBackendFormat(formData as QuestionCreateForm);
+  const backendData = prepareQuestionData(formData as QuestionCreateForm);
   
   const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
     method: 'PUT',
@@ -351,4 +335,4 @@ export async function fetchTags(): Promise<string[]> {
   
   const result = await response.json();
   return result.data || result;
-} 
+}

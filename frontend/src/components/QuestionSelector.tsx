@@ -480,7 +480,7 @@ export const QuestionSelector: React.FC<QuestionSelectorProps> = ({
                           <span className="text-xs text-gray-500">{question.type}</span>
                           <span className="text-xs text-gray-500">{question.points} điểm</span>
                           {question.category && (
-                            <span className="text-xs text-blue-600">{question.category}</span>
+                            <span className="text-xs text-blue-600">{question.category.name}</span>
                           )}
                         </div>
                         

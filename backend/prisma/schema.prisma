@@ -26,6 +26,10 @@ model User {
   
   // Relations
   questionsCreated      Question[] @relation("QuestionCreator")
+  examsCreated          Exam[]     @relation("ExamCreator")
+  examAttempts          ExamAttempt[]
+  examSubmissions       ExamSubmission[]
+  examSessions          ExamSession[]
 
   @@map("users")
 }
@@ -56,7 +60,62 @@ model Question {
   isDeleted   Boolean   @default(false)
   deletedAt   DateTime?
 
+  // Exam relations
+  examQuestions ExamQuestion[]
+
   @@map("questions")
+}
+
+model Exam {
+  id          String     @id @default(cuid())
+  title       String
+  description String?    @db.Text
+  instructions String?   @db.Text
+  
+  // Exam configuration (JSON for flexibility)
+  settings    Json
+  
+  // Status and metadata
+  status      ExamStatus @default(DRAFT)
+  
+  // Relations
+  questions   ExamQuestion[]
+  attempts    ExamAttempt[]
+  submissions ExamSubmission[]
+  sessions    ExamSession[]
+  createdById String
+  createdBy   User       @relation("ExamCreator", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Soft delete
+  isDeleted   Boolean    @default(false)
+  deletedAt   DateTime?
+
+  @@map("exams")
+}
+
+model ExamQuestion {
+  id         String   @id @default(cuid())
+  examId     String
+  questionId String
+  order      Int      // Position in exam
+  points     Float?   // Override question default points
+  
+  // Relations
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Ensure unique question per exam
+  @@unique([examId, questionId])
+  // Index for ordering
+  @@index([examId, order])
+  @@map("exam_questions")
 }
 
 model QuestionCategory {
@@ -99,6 +158,94 @@ model QuestionTag {
   @@map("question_tags")
 }
 
+model ExamAttempt {
+  id            String    @id @default(cuid())
+  examId        String
+  userId        String
+  attemptNumber Int       // 1, 2, 3, etc.
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  timeSpent     Int       @default(0) // in seconds
+  submissionId  String?   @unique
+  
+  // Relations
+  exam         Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submission   ExamSubmission? @relation("AttemptSubmission", fields: [submissionId], references: [id])
+  
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  // Ensure unique attempt number per user per exam
+  @@unique([examId, userId, attemptNumber])
+  @@index([examId, userId])
+  @@map("exam_attempts")
+}
+
+model ExamSubmission {
+  id           String    @id @default(cuid())
+  examId       String
+  userId       String
+  answers      Json      // Array of ExamAnswer objects
+  timeSpent    Int       // Total time spent in seconds
+  score        Float?    // Calculated score
+  totalPoints  Float?    // Total possible points
+  percentage   Float?    // Score percentage
+  passed       Boolean?  // Whether the exam was passed
+  isAutoSubmit Boolean   @default(false) // Whether submitted automatically due to timeout
+  submittedAt  DateTime  @default(now())
+  gradedAt     DateTime? // When the submission was graded
+  
+  // Relations
+  exam         Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempt      ExamAttempt? @relation("AttemptSubmission")
+  session      ExamSession? @relation("SessionSubmission")
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([examId, userId])
+  @@index([userId, submittedAt])
+  @@map("exam_submissions")
+}
+
+model ExamSession {
+  id                String    @id @default(cuid())
+  examId            String
+  userId            String
+  attemptNumber     Int       // Which attempt this session represents
+  startedAt         DateTime  @default(now())
+  lastActivityAt    DateTime  @default(now())
+  expiresAt         DateTime? // Optional session expiration
+  isActive          Boolean   @default(true)
+  currentQuestion   Int       @default(0) // Current question index
+  timeRemaining     Int?      // Seconds remaining (cached)
+  
+  // Session state storage
+  answers           Json      @default("[]") // Array of current answers
+  sessionData       Json      @default("{}") // Additional session metadata
+  
+  // Completion tracking
+  completedAt       DateTime?
+  submittedAt       DateTime?
+  submissionId      String?   @unique
+  
+  // Relations
+  exam              Exam              @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submission        ExamSubmission?   @relation("SessionSubmission", fields: [submissionId], references: [id])
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Indexes for performance - uniqueness handled in application code
+  @@index([examId, userId])
+  @@index([userId, isActive])
+  @@index([examId, userId, isActive])
+  @@map("exam_sessions")
+}
+
 enum UserRole {
   STUDENT
   ADMIN
@@ -116,4 +263,21 @@ enum Difficulty {
   EASY
   MEDIUM
   HARD
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum NavigationType {
+  FREE
+  LINEAR
+}
+
+enum FeedbackType {
+  IMMEDIATE
+  AFTER_EXAM
+  NEVER
 } 

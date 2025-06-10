@@ -28,12 +28,19 @@ const HomePage: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex space-x-4">
-                  {user && isAdmin(user.role) && (
+                  {user && isAdmin(user.role) ? (
                     <Link
                       to="/admin"
                       className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                     >
                       Khu vực quản trị
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/student/dashboard"
+                      className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                    >
+                      Bảng điều khiển học sinh
                     </Link>
                   )}
                   <button
@@ -155,16 +162,31 @@ const HomePage: React.FC = () => {
                   </Link>
                 </>
               ) : (
-                <div className="text-gray-600">
-                  Bạn đã đăng nhập thành công! 
-                  {user && isAdmin(user.role) && (
-                    <>
-                      {' '}
-                      <Link to="/admin" className="text-blue-600 hover:text-blue-800">
-                        Truy cập khu vực quản trị
-                      </Link>
-                    </>
-                  )}
+                <div className="space-y-4">
+                  <div className="text-gray-600">
+                    Bạn đã đăng nhập thành công!
+                  </div>
+                  <div className="flex justify-center space-x-4">
+                    {user && isAdmin(user.role) ? (
+                      <>
+                        <Link to="/admin" className="btn-primary">
+                          Khu vực quản trị
+                        </Link>
+                        <Link to="/admin/exams" className="btn-secondary">
+                          Quản lý bài thi
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <Link to="/student/dashboard" className="btn-primary">
+                          Bảng điều khiển
+                        </Link>
+                        <Link to="/student/exams" className="btn-secondary">
+                          Xem bài thi
+                        </Link>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

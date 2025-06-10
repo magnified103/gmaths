@@ -12,13 +12,18 @@ import {
   publishExam, 
   archiveExam,
   duplicateExam,
-  fetchExamPreview 
+  fetchExamPreview,
+  fetchTakeableExams,
+  checkExamAvailability,
+  fetchExamForTaking
 } from '../api/exams';
 import type { 
   ExamFilters, 
   ExamListResponse, 
   CreateExamRequest, 
-  UpdateExamRequest 
+  UpdateExamRequest,
+  ExamAvailability,
+  ExamWithQuestions
 } from '../types/exams';
 
 /**
@@ -147,13 +152,47 @@ export const useArchiveExam = () => {
  */
 export const useDuplicateExam = () => {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
-    mutationFn: ({ id, title }: { id: string; title?: string }) => 
-      duplicateExam(id, title),
+    mutationFn: ({ examId, newTitle }: { examId: string; newTitle?: string }) =>
+      duplicateExam(examId, newTitle),
     onSuccess: () => {
-      // Invalidate and refetch exams list
       queryClient.invalidateQueries({ queryKey: ['exams'] });
+    },
+    onError: (error) => {
+      console.error('Failed to duplicate exam:', error);
+    },
+  });
+};
+
+// Student exam hooks
+export const useTakeableExams = (
+  filters: ExamFilters = {},
+  enabled: boolean = true
+) => {
+  return useQuery({
+    queryKey: ['takeable-exams', filters],
+    queryFn: () => fetchTakeableExams(filters),
+    enabled,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+};
+
+export const useExamAvailability = (examId: string) => {
+  return useQuery({
+    queryKey: ['exam-availability', examId],
+    queryFn: () => checkExamAvailability(examId),
+    enabled: !!examId,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const useExamForTaking = () => {
+  return useMutation({
+    mutationFn: ({ examId, password }: { examId: string; password?: string }) =>
+      fetchExamForTaking(examId, password),
+    onError: (error) => {
+      console.error('Failed to fetch exam for taking:', error);
     },
   });
 }; 

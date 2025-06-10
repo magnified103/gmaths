@@ -78,6 +78,8 @@ export async function questionRoutes(fastify: FastifyInstance) {
     preHandler: authenticateToken
   }, async (request, reply) => {
     try {
+      console.log('Question route accessed with query:', request.query);
+      
       const {
         page = '1',
         limit = '20',
@@ -101,8 +103,12 @@ export async function questionRoutes(fastify: FastifyInstance) {
       if (sortBy) filters.sortBy = sortBy as any;
       if (sortOrder) filters.sortOrder = sortOrder;
 
+      console.log('Parsed filters:', filters);
+
       const pageNum = parseInt(page, 10) || 1;
       const limitNum = parseInt(limit, 10) || 20;
+
+      console.log('Calling questionService.getQuestions with:', { filters, pageNum, limitNum });
 
       const result = await questionService.getQuestions(
         filters,
@@ -110,11 +116,16 @@ export async function questionRoutes(fastify: FastifyInstance) {
         limitNum
       );
 
+      console.log('Successfully fetched questions:', result);
+
       reply.send({
         success: true,
         data: result
       });
     } catch (error) {
+      console.error('Error in GET /api/questions:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
       reply.code(500).send({
         error: 'Internal Server Error',
         message: error instanceof Error ? error.message : 'Failed to fetch questions'

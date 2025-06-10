@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../api/auth';
+import { authAPI, isAdmin } from '../api/auth';
 
 /**
  * Authentication hook providing login, registration, and user management
- * Now connected to real backend API endpoints with navigation support.
+ * Now connected to real backend API endpoints with role-based navigation support.
  */
 export const useAuth = () => {
   const queryClient = useQueryClient();
@@ -25,8 +25,12 @@ export const useAuth = () => {
       localStorage.setItem('auth-token', data.accessToken);
       queryClient.setQueryData(['auth', 'user'], data.user);
       
-      // Navigate to home page after login for all users
-      navigate('/');
+      // Navigate based on user role after login
+      if (isAdmin(data.user.role)) {
+        navigate('/admin');
+      } else {
+        navigate('/student/dashboard');
+      }
     },
   });
 
@@ -37,8 +41,12 @@ export const useAuth = () => {
       localStorage.setItem('auth-token', data.accessToken);
       queryClient.setQueryData(['auth', 'user'], data.user);
       
-      // Navigate to home page after registration
-      navigate('/');
+      // Navigate based on user role after registration
+      if (isAdmin(data.user.role)) {
+        navigate('/admin');
+      } else {
+        navigate('/student/dashboard');
+      }
     },
   });
 

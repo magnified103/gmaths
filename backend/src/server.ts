@@ -2,15 +2,23 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import formbody from '@fastify/formbody';
 import multipart from '@fastify/multipart';
+import { Server as SocketIOServer } from 'socket.io';
 import { authRoutes } from './routes/authRoutes';
 import { adminRoutes } from './routes/adminRoutes';
 import { questionRoutes } from './routes/questionRoutes';
+import { examRoutes } from './routes/examRoutes';
+import { timerRoutes } from './routes/timerRoutes';
+import { gradingRoutes } from './routes/gradingRoutes';
+import { WebSocketService } from './services/websocketService';
 
 const fastify = Fastify({
   logger: {
     level: process.env.NODE_ENV === 'production' ? 'warn' : 'info'
   }
 });
+
+// WebSocket service instance
+let websocketService: WebSocketService;
 
 /**
  * Register plugins for CORS, form handling, and file uploads.
@@ -29,7 +37,7 @@ async function registerPlugins(): Promise<void> {
 
   await fastify.register(cors, {
     ...corsOptions,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     preflightContinue: false,
     optionsSuccessStatus: 204
@@ -39,6 +47,26 @@ async function registerPlugins(): Promise<void> {
   await fastify.register(multipart);
 
   // TODO: Add rate limiting back with proper TypeScript types
+}
+
+/**
+ * Setup WebSocket server with Socket.io
+ */
+function setupWebSocket(): void {
+  const io = new SocketIOServer(fastify.server, {
+    cors: {
+      origin: process.env.NODE_ENV === 'production' 
+        ? ['https://gmaths.edu.vn']
+        : ['http://localhost:5173', 'http://localhost:3000'],
+      credentials: true
+    },
+    transports: ['websocket', 'polling']
+  });
+
+  // Initialize WebSocket service
+  websocketService = new WebSocketService(io);
+  
+  fastify.log.info('WebSocket server initialized');
 }
 
 /**
@@ -71,6 +99,17 @@ async function registerRoutes(): Promise<void> {
   
   // Register question routes
   await fastify.register(questionRoutes, { prefix: '/api/questions' });
+  
+  // Register exam routes
+  await fastify.register(examRoutes, { prefix: '/api' });
+  
+  // Register timer routes (requires WebSocket service)
+  await fastify.register(async (fastify) => {
+    await timerRoutes(fastify, websocketService);
+  }, { prefix: '/api/timer' });
+  
+  // Register grading routes
+  await fastify.register(gradingRoutes);
 }
 
 /**
@@ -79,8 +118,13 @@ async function registerRoutes(): Promise<void> {
 async function start(): Promise<void> {
   try {
     await registerPlugins();
+    
+    // Setup WebSocket before routes (needed for timer routes)
+    setupWebSocket();
+    
+    // Register all routes BEFORE starting to listen
     await registerRoutes();
-
+    
     const port = parseInt(process.env.PORT || '3000', 10);
     const host = process.env.HOST || '0.0.0.0';
 
@@ -88,6 +132,7 @@ async function start(): Promise<void> {
     
     fastify.log.info(`Server listening on http://${host}:${port}`);
     fastify.log.info('Authentication routes registered at /api/auth/*');
+    fastify.log.info('WebSocket server ready for timer synchronization');
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
@@ -97,11 +142,17 @@ async function start(): Promise<void> {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   fastify.log.info('Received SIGTERM, closing server gracefully');
+  if (websocketService) {
+    await websocketService.cleanup();
+  }
   await fastify.close();
 });
 
 process.on('SIGINT', async () => {
   fastify.log.info('Received SIGINT, closing server gracefully');
+  if (websocketService) {
+    await websocketService.cleanup();
+  }
   await fastify.close();
 });
 

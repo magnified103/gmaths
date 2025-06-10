@@ -5,9 +5,9 @@
 
 import type { Question, QuestionType, Difficulty, QuestionCategory, Tag } from '@prisma/client';
 
-// Base question interfaces matching frontend
-export type QuestionTypeEnum = 'MULTIPLE_CHOICE' | 'MULTIPLE_SELECT' | 'TRUE_FALSE' | 'FILL_BLANK' | 'ESSAY';
-export type DifficultyEnum = 'EASY' | 'MEDIUM' | 'HARD';
+// Base question interfaces matching frontend - standardized to lowercase
+export type QuestionTypeEnum = 'multiple-choice' | 'multiple-select' | 'true-false' | 'fill-blank' | 'essay';
+export type DifficultyEnum = 'easy' | 'medium' | 'hard';
 
 /**
  * Question option interface for multiple choice questions
@@ -119,9 +119,9 @@ export interface QuestionListResponse {
  */
 export interface QuestionFilters {
   search?: string;
-  type?: QuestionTypeEnum | 'ALL';
+  type?: QuestionTypeEnum | 'ALL' | 'all';
   categoryId?: string;
-  difficulty?: DifficultyEnum | 'ALL';
+  difficulty?: DifficultyEnum | 'ALL' | 'all';
   tagIds?: string[];
   createdById?: string;
   sortBy?: 'content' | 'category' | 'difficulty' | 'createdAt' | 'updatedAt' | 'points';

@@ -26,6 +26,66 @@ const prisma = new PrismaClient();
  */
 export class QuestionService {
   /**
+   * Convert standardized lowercase question type to Prisma enum format
+   * @param type - Standardized question type
+   * @returns Prisma enum value
+   */
+  private toPrismaQuestionType(type: QuestionTypeEnum): string {
+    const typeMap: Record<QuestionTypeEnum, string> = {
+      'multiple-choice': 'MULTIPLE_CHOICE',
+      'multiple-select': 'MULTIPLE_SELECT',
+      'true-false': 'TRUE_FALSE',
+      'fill-blank': 'FILL_BLANK',
+      'essay': 'ESSAY'
+    };
+    return typeMap[type];
+  }
+
+  /**
+   * Convert Prisma enum to standardized lowercase question type
+   * @param type - Prisma enum value
+   * @returns Standardized question type
+   */
+  private fromPrismaQuestionType(type: string): QuestionTypeEnum {
+    const typeMap: Record<string, QuestionTypeEnum> = {
+      'MULTIPLE_CHOICE': 'multiple-choice',
+      'MULTIPLE_SELECT': 'multiple-select',
+      'TRUE_FALSE': 'true-false',
+      'FILL_BLANK': 'fill-blank',
+      'ESSAY': 'essay'
+    };
+    return typeMap[type] || type.toLowerCase() as QuestionTypeEnum;
+  }
+
+  /**
+   * Convert standardized lowercase difficulty to Prisma enum format
+   * @param difficulty - Standardized difficulty
+   * @returns Prisma enum value
+   */
+  private toPrismaDifficulty(difficulty: DifficultyEnum): string {
+    const difficultyMap: Record<DifficultyEnum, string> = {
+      'easy': 'EASY',
+      'medium': 'MEDIUM',
+      'hard': 'HARD'
+    };
+    return difficultyMap[difficulty];
+  }
+
+  /**
+   * Convert Prisma enum to standardized lowercase difficulty
+   * @param difficulty - Prisma enum value
+   * @returns Standardized difficulty
+   */
+  private fromPrismaDifficulty(difficulty: string): DifficultyEnum {
+    const difficultyMap: Record<string, DifficultyEnum> = {
+      'EASY': 'easy',
+      'MEDIUM': 'medium',
+      'HARD': 'hard'
+    };
+    return difficultyMap[difficulty] || difficulty.toLowerCase() as DifficultyEnum;
+  }
+
+  /**
    * Creates a new question with validation
    * @param data - Question creation data
    * @param createdById - ID of the user creating the question
@@ -55,11 +115,11 @@ export class QuestionService {
     try {
       const question = await prisma.question.create({
         data: {
-          type: data.type as any, // Prisma enum
+          type: this.toPrismaQuestionType(data.type) as any, // Prisma enum
           content: data.content,
           explanation: data.explanation,
           points: data.points,
-          difficulty: data.difficulty as any, // Prisma enum
+          difficulty: this.toPrismaDifficulty(data.difficulty) as any, // Prisma enum
           typeData: data.typeData as Prisma.InputJsonValue,
           categoryId: data.categoryId,
           createdById,
@@ -131,11 +191,11 @@ export class QuestionService {
     try {
       // Prepare update data
       const updateData: any = {};
-      if (data.type) updateData.type = data.type;
+      if (data.type) updateData.type = this.toPrismaQuestionType(data.type) as any;
       if (data.content) updateData.content = data.content;
       if (data.explanation !== undefined) updateData.explanation = data.explanation;
       if (data.points) updateData.points = data.points;
-      if (data.difficulty) updateData.difficulty = data.difficulty;
+      if (data.difficulty) updateData.difficulty = this.toPrismaDifficulty(data.difficulty) as any;
       if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
       if (data.typeData) updateData.typeData = data.typeData as Prisma.InputJsonValue;
 
@@ -235,18 +295,18 @@ export class QuestionService {
     }
 
     // Type filter
-    if (filters.type && filters.type !== 'ALL') {
-      where.type = filters.type as any;
+    if (filters.type && filters.type.toUpperCase() !== 'ALL') {
+      where.type = this.toPrismaQuestionType(filters.type as QuestionTypeEnum) as any;
     }
 
     // Category filter
-    if (filters.categoryId) {
+    if (filters.categoryId && filters.categoryId !== 'all') {
       where.categoryId = filters.categoryId;
     }
 
     // Difficulty filter
-    if (filters.difficulty && filters.difficulty !== 'ALL') {
-      where.difficulty = filters.difficulty as any;
+    if (filters.difficulty && filters.difficulty.toUpperCase() !== 'ALL') {
+      where.difficulty = this.toPrismaDifficulty(filters.difficulty as DifficultyEnum) as any;
     }
 
     // Tag filter
@@ -519,8 +579,8 @@ export class QuestionService {
     const warnings: QuestionValidationError[] = [];
 
     switch (type) {
-      case 'MULTIPLE_CHOICE':
-      case 'MULTIPLE_SELECT':
+      case 'multiple-choice':
+      case 'multiple-select':
         const mcData = typeData as any;
         if (!mcData.options || !Array.isArray(mcData.options)) {
           errors.push({
@@ -538,13 +598,13 @@ export class QuestionService {
           }
 
           const correctOptions = mcData.options.filter((opt: any) => opt.isCorrect);
-          if (type === 'MULTIPLE_CHOICE' && correctOptions.length !== 1) {
+          if (type === 'multiple-choice' && correctOptions.length !== 1) {
             errors.push({
               field: 'typeData.options',
               message: 'Exactly one correct option is required for multiple choice',
               code: 'INVALID_COUNT'
             });
-          } else if (type === 'MULTIPLE_SELECT' && correctOptions.length === 0) {
+          } else if (type === 'multiple-select' && correctOptions.length === 0) {
             errors.push({
               field: 'typeData.options',
               message: 'At least one correct option is required for multiple select',
@@ -565,7 +625,7 @@ export class QuestionService {
         }
         break;
 
-      case 'TRUE_FALSE':
+      case 'true-false':
         const tfData = typeData as any;
         if (typeof tfData.correctAnswer !== 'boolean') {
           errors.push({
@@ -576,7 +636,7 @@ export class QuestionService {
         }
         break;
 
-      case 'FILL_BLANK':
+      case 'fill-blank':
         const fbData = typeData as any;
         if (!fbData.blanks || !Array.isArray(fbData.blanks)) {
           errors.push({
@@ -593,7 +653,7 @@ export class QuestionService {
         }
         break;
 
-      case 'ESSAY':
+      case 'essay':
         const essayData = typeData as any;
         if (essayData.maxWords && essayData.minWords && essayData.maxWords < essayData.minWords) {
           errors.push({
@@ -658,6 +718,8 @@ export class QuestionService {
   private formatQuestionResponse(question: any): QuestionWithRelations {
     return {
       ...question,
+      type: this.fromPrismaQuestionType(question.type),
+      difficulty: this.fromPrismaDifficulty(question.difficulty),
       tags: question.tags.map((qt: any) => ({
         ...qt.tag,
         questionTag: {
