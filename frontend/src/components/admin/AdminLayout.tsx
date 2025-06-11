@@ -5,8 +5,7 @@ import {
   UsersIcon,
   AcademicCapIcon,
   DocumentTextIcon,
-  ChartBarIcon,
-  CogIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import BrandLogo from '../ui/BrandLogo';
 
@@ -55,22 +54,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       current: location.pathname.startsWith('/admin/exams') 
     },
     { 
-      name: 'Bài viết & Thông báo', 
-      href: '/admin/posts', 
-      icon: DocumentTextIcon, 
-      current: location.pathname.startsWith('/admin/posts') 
-    },
-    { 
-      name: 'Thống kê & Báo cáo', 
-      href: '/admin/analytics', 
-      icon: ChartBarIcon, 
-      current: location.pathname.startsWith('/admin/analytics') 
-    },
-    { 
-      name: 'Cài đặt hệ thống', 
-      href: '/admin/settings', 
-      icon: CogIcon, 
-      current: location.pathname.startsWith('/admin/settings') 
+      name: 'Quản lý kết quả', 
+      href: '/admin/results', 
+      icon: ClipboardDocumentListIcon, 
+      current: location.pathname.startsWith('/admin/results') 
     },
   ];
 

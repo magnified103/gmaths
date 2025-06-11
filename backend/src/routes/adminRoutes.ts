@@ -3,8 +3,12 @@ import { z } from 'zod';
 import { UserRole } from '@prisma/client';
 import { createUser, getUserList, getUserById, updateUser, deleteUser } from '../services/authService';
 import { processBulkUserImport, generateCSVTemplate } from '../services/csvService';
+import { ExamService } from '../services/examService';
 import { authenticateToken, requireRole } from '../utils/authMiddleware';
 import { handleRouteError, successResponse } from '../utils/errorHandler';
+
+// Initialize exam service for admin summaries
+const examService = new ExamService();
 
 /**
  * User creation schema for admin use (allows role specification)
@@ -205,6 +209,36 @@ export async function adminRoutes(fastify: FastifyInstance) {
         .send(csvContent);
     } catch (error) {
       return handleRouteError(error, reply, 'Generate CSV Template');
+    }
+  });
+
+  /**
+   * GET /admin/exam-summaries - Get exam summaries for admin dashboard
+   */
+  fastify.get('/admin/exam-summaries', {
+    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const examSummaries = await examService.getExamSummariesForAdmin();
+      
+      return reply.send(successResponse(examSummaries, 'Exam summaries retrieved successfully'));
+    } catch (error) {
+      return handleRouteError(error, reply, 'Get Exam Summaries');
+    }
+  });
+
+  /**
+   * GET /admin/student-summaries - Get student summaries for admin dashboard
+   */
+  fastify.get('/admin/student-summaries', {
+    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const studentSummaries = await examService.getStudentSummariesForAdmin();
+      
+      return reply.send(successResponse(studentSummaries, 'Student summaries retrieved successfully'));
+    } catch (error) {
+      return handleRouteError(error, reply, 'Get Student Summaries');
     }
   });
 } 

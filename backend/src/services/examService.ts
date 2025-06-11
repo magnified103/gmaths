@@ -1428,6 +1428,18 @@ export class ExamService {
     // Get exam statistics for comparison
     const examStats = await this.getExamStatistics(examId);
 
+    // Get the attempt number from the associated session
+    const session = await prisma.examSession.findFirst({
+      where: {
+        submissionId: submission.id
+      },
+      select: {
+        attemptNumber: true,
+        startedAt: true,
+        completedAt: true
+      }
+    });
+
     // Process question results with detailed feedback
     const questionResults = submission.exam.questions.map((examQuestion) => {
       const question = examQuestion.question;
@@ -1473,7 +1485,401 @@ export class ExamService {
       rank: await this.calculateStudentRank(examId, userId),
       totalStudents: examStats.totalSubmissions,
       averageScore: examStats.averageScore,
-      highestScore: examStats.highestScore
+      highestScore: examStats.highestScore,
+      attemptNumber: session?.attemptNumber || 1,
+      attemptStartedAt: session?.startedAt?.toISOString(),
+      attemptCompletedAt: session?.completedAt?.toISOString()
+    };
+  }
+
+  /**
+   * Get all exam attempts for a specific student and exam
+   * @param examId - Exam ID
+   * @param userId - Student user ID
+   * @returns List of exam attempts with basic info
+   */
+  async getExamAttempts(examId: string, userId: string) {
+    console.log(`🔍 getExamAttempts called with examId: ${examId}, userId: ${userId}`);
+    
+    // First, query ALL sessions for this user/exam to see the full picture
+    const allSessions = await prisma.examSession.findMany({
+      where: {
+        examId: examId,
+        userId: userId
+      },
+      orderBy: { attemptNumber: 'asc' }
+    });
+    
+    console.log(`📊 Found ${allSessions.length} total sessions for user ${userId} on exam ${examId}:`, 
+      allSessions.map(s => ({ 
+        attempt: s.attemptNumber, 
+        isActive: s.isActive, 
+        hasSubmission: !!s.submissionId,
+        completed: !!s.completedAt,
+        sessionId: s.id.slice(-8), // Show last 8 chars for identification
+        startedAt: s.startedAt.toISOString().split('T')[0] // Show just the date
+      }))
+    );
+    
+    // Also check direct submissions (for debugging)
+    const allSubmissions = await prisma.examSubmission.findMany({
+      where: {
+        examId: examId,
+        userId: userId
+      },
+      orderBy: { submittedAt: 'asc' }
+    });
+    
+    console.log(`📝 Found ${allSubmissions.length} direct submissions for user ${userId} on exam ${examId}:`, 
+      allSubmissions.map(s => ({ submissionId: s.id.slice(-8), submittedAt: s.submittedAt.toISOString().split('T')[0], score: `${s.score}/${s.totalPoints}` }))
+    );
+
+    // Step 1: Get sessions with linked submissions
+    const sessionsWithSubmissions = await prisma.examSession.findMany({
+      where: {
+        examId: examId,
+        userId: userId,
+        isActive: false, // Only completed sessions
+        submissionId: { not: null } // Only sessions with submissions
+      },
+      include: {
+        submission: {
+          select: {
+            id: true,
+            score: true,
+            totalPoints: true,
+            percentage: true,
+            passed: true,
+            submittedAt: true,
+            gradedAt: true,
+            isAutoSubmit: true
+          }
+        }
+      },
+      orderBy: { attemptNumber: 'asc' }
+    });
+    
+    console.log(`✅ Found ${sessionsWithSubmissions.length} sessions with linked submissions`);
+    
+    // Step 2: Get orphaned submissions (submissions without linked sessions)
+    const linkedSubmissionIds = sessionsWithSubmissions
+      .map(s => s.submissionId)
+      .filter((id): id is string => id !== null);
+    
+    const orphanedSubmissions = await prisma.examSubmission.findMany({
+      where: {
+        examId: examId,
+        userId: userId,
+        ...(linkedSubmissionIds.length > 0 ? { id: { notIn: linkedSubmissionIds } } : {})
+      },
+      orderBy: { submittedAt: 'asc' }
+    });
+    
+    console.log(`🔍 Found ${orphanedSubmissions.length} orphaned submissions:`, 
+      orphanedSubmissions.map(s => ({ id: s.id.slice(-8), score: `${s.score}/${s.totalPoints}` }))
+    );
+    
+    // Step 3: Create attempt entries by combining sessions and orphaned submissions
+    interface AttemptData {
+      attemptNumber: number;
+      startedAt: string;
+      completedAt?: string;
+      timeSpent: number;
+      submissionId: string | null;
+      submission: {
+        id: string;
+        score: number;
+        totalPoints: number;
+        percentage: number;
+        passed: boolean;
+        submittedAt: string;
+        gradedAt?: string;
+        isAutoSubmit: boolean;
+      } | null;
+    }
+    
+    const attempts: AttemptData[] = [];
+    
+    // Add sessions with submissions (these have proper attempt numbers)
+    sessionsWithSubmissions.forEach(session => {
+      attempts.push({
+        attemptNumber: session.attemptNumber,
+        startedAt: session.startedAt.toISOString(),
+        completedAt: session.completedAt?.toISOString(),
+        timeSpent: session.completedAt && session.startedAt 
+          ? Math.floor((session.completedAt.getTime() - session.startedAt.getTime()) / 1000)
+          : 0,
+        submissionId: session.submissionId,
+        submission: session.submission ? {
+          id: session.submission.id,
+          score: session.submission.score || 0,
+          totalPoints: session.submission.totalPoints || 0,
+          percentage: session.submission.percentage || 0,
+          passed: session.submission.passed || false,
+          submittedAt: session.submission.submittedAt.toISOString(),
+          gradedAt: session.submission.gradedAt?.toISOString(),
+          isAutoSubmit: session.submission.isAutoSubmit
+        } : null
+      });
+    });
+    
+    // Add orphaned submissions as missing attempts
+    orphanedSubmissions.forEach((submission) => {
+      // Calculate what attempt number this should be
+      // Find the lowest unused attempt number
+      let attemptNumber = 1;
+      const usedAttemptNumbers = new Set(attempts.map(a => a.attemptNumber));
+      while (usedAttemptNumbers.has(attemptNumber)) {
+        attemptNumber++;
+      }
+      
+      attempts.push({
+        attemptNumber: attemptNumber,
+        startedAt: submission.submittedAt.toISOString(), // Use submission date as start time
+        completedAt: submission.submittedAt.toISOString(),
+        timeSpent: submission.timeSpent || 0,
+        submissionId: submission.id,
+        submission: {
+          id: submission.id,
+          score: submission.score || 0,
+          totalPoints: submission.totalPoints || 0,
+          percentage: submission.percentage || 0,
+          passed: submission.passed || false,
+          submittedAt: submission.submittedAt.toISOString(),
+          gradedAt: submission.gradedAt?.toISOString(),
+          isAutoSubmit: submission.isAutoSubmit
+        }
+      });
+    });
+    
+    // Sort by attempt number
+    attempts.sort((a, b) => a.attemptNumber - b.attemptNumber);
+    
+    console.log(`📋 Final attempts list (${attempts.length} total):`, 
+      attempts.map(a => ({ 
+        attempt: a.attemptNumber, 
+        score: `${a.submission?.score}/${a.submission?.totalPoints}`,
+        submissionId: a.submissionId?.slice(-8)
+      }))
+    );
+
+    return attempts;
+  }
+
+  /**
+   * Get exam results for a specific attempt
+   * @param examId - Exam ID
+   * @param userId - Student user ID
+   * @param attemptNumber - Specific attempt number
+   * @returns Detailed exam results for the attempt
+   */
+  async getExamResultsByAttempt(examId: string, userId: string, attemptNumber: number) {
+    // First, try to find the session with submission for this specific attempt
+    const sessionWithSubmission = await prisma.examSession.findFirst({
+      where: {
+        examId: examId,
+        userId: userId,
+        attemptNumber: attemptNumber,
+        submissionId: { not: null }
+      },
+      include: {
+        submission: {
+          include: {
+            exam: {
+              select: {
+                id: true,
+                title: true,
+                questions: {
+                  include: {
+                    question: {
+                      select: {
+                        id: true,
+                        content: true,
+                        type: true,
+                        points: true,
+                        typeData: true,
+                        explanation: true
+                      }
+                    }
+                  },
+                  orderBy: { order: 'asc' }
+                }
+              }
+            },
+            user: {
+              select: {
+                id: true,
+                username: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (sessionWithSubmission?.submission) {
+      const submission = sessionWithSubmission.submission;
+      
+      // Get exam statistics for comparison
+      const examStats = await this.getExamStatistics(examId);
+
+      // Process question results with detailed feedback
+      const questionResults = submission.exam.questions.map((examQuestion) => {
+        const question = examQuestion.question;
+        const studentAnswer = (submission.answers as unknown as ExamAnswer[]).find(
+          (answer) => answer.questionId === question.id
+        );
+
+        // Grade this specific question to get detailed feedback
+        const grading = this.gradeQuestionForDisplay(
+          question,
+          studentAnswer,
+          examQuestion.points || question.points
+        );
+
+        return {
+          questionId: question.id,
+          questionContent: question.content,
+          questionType: question.type,
+          points: examQuestion.points || question.points,
+          earnedPoints: grading.earnedPoints,
+          isCorrect: grading.isCorrect,
+          studentAnswer: studentAnswer?.answer,
+          correctAnswer: this.extractCorrectAnswer(question),
+          explanation: question.explanation,
+          timeSpent: studentAnswer?.timeSpent || 0
+        };
+      });
+
+      return {
+        id: submission.id,
+        examId: submission.examId,
+        examTitle: submission.exam.title,
+        studentId: submission.userId,
+        studentName: submission.user.username,
+        score: submission.score || 0,
+        totalPoints: submission.totalPoints || 0,
+        percentage: submission.percentage || 0,
+        passed: submission.passed || false,
+        timeSpent: submission.timeSpent,
+        submittedAt: submission.submittedAt.toISOString(),
+        gradedAt: submission.gradedAt?.toISOString(),
+        questionResults,
+        rank: await this.calculateStudentRank(examId, userId),
+        totalStudents: examStats.totalSubmissions,
+        averageScore: examStats.averageScore,
+        highestScore: examStats.highestScore,
+        attemptNumber: sessionWithSubmission.attemptNumber,
+        attemptStartedAt: sessionWithSubmission.startedAt.toISOString(),
+        attemptCompletedAt: sessionWithSubmission.completedAt?.toISOString()
+      };
+    }
+
+    // Fallback: try to find any submission for this user and exam
+    const submission = await prisma.examSubmission.findFirst({
+      where: {
+        examId: examId,
+        userId: userId
+      },
+      include: {
+        exam: {
+          select: {
+            id: true,
+            title: true,
+            questions: {
+              include: {
+                question: {
+                  select: {
+                    id: true,
+                    content: true,
+                    type: true,
+                    points: true,
+                    typeData: true,
+                    explanation: true
+                  }
+                }
+              },
+              orderBy: { order: 'asc' }
+            }
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            username: true
+          }
+        }
+      },
+      orderBy: {
+        submittedAt: 'desc' // Get the most recent submission if multiple exist
+      }
+    });
+
+    if (!submission) {
+      throw new Error('Exam attempt not found');
+    }
+
+    // Try to find the session for this attempt to get timing details
+    const session = await prisma.examSession.findFirst({
+      where: {
+        examId: examId,
+        userId: userId,
+        attemptNumber: attemptNumber
+      }
+    });
+
+    // Get exam statistics for comparison
+    const examStats = await this.getExamStatistics(examId);
+
+    // Process question results with detailed feedback
+    const questionResults = submission.exam.questions.map((examQuestion) => {
+      const question = examQuestion.question;
+      const studentAnswer = (submission.answers as unknown as ExamAnswer[]).find(
+        (answer) => answer.questionId === question.id
+      );
+
+      // Grade this specific question to get detailed feedback
+      const grading = this.gradeQuestionForDisplay(
+        question,
+        studentAnswer,
+        examQuestion.points || question.points
+      );
+
+      return {
+        questionId: question.id,
+        questionContent: question.content,
+        questionType: question.type,
+        points: examQuestion.points || question.points,
+        earnedPoints: grading.earnedPoints,
+        isCorrect: grading.isCorrect,
+        studentAnswer: studentAnswer?.answer,
+        correctAnswer: this.extractCorrectAnswer(question),
+        explanation: question.explanation,
+        timeSpent: studentAnswer?.timeSpent || 0
+      };
+    });
+
+    return {
+      id: submission.id,
+      examId: submission.examId,
+      examTitle: submission.exam.title,
+      studentId: submission.userId,
+      studentName: submission.user.username,
+      score: submission.score || 0,
+      totalPoints: submission.totalPoints || 0,
+      percentage: submission.percentage || 0,
+      passed: submission.passed || false,
+      timeSpent: submission.timeSpent,
+      submittedAt: submission.submittedAt.toISOString(),
+      gradedAt: submission.gradedAt?.toISOString(),
+      questionResults,
+      rank: await this.calculateStudentRank(examId, userId),
+      totalStudents: examStats.totalSubmissions,
+      averageScore: examStats.averageScore,
+      highestScore: examStats.highestScore,
+      attemptNumber: session?.attemptNumber || attemptNumber,
+      attemptStartedAt: session?.startedAt?.toISOString(),
+      attemptCompletedAt: session?.completedAt?.toISOString()
     };
   }
 
@@ -1676,6 +2082,13 @@ export class ExamService {
             title: true,
             status: true
           }
+        },
+        attempt: {
+          select: {
+            attemptNumber: true,
+            startedAt: true,
+            completedAt: true
+          }
         }
       },
       orderBy: { submittedAt: 'desc' }
@@ -1692,8 +2105,83 @@ export class ExamService {
       timeSpent: submission.timeSpent,
       submittedAt: submission.submittedAt.toISOString(),
       gradedAt: submission.gradedAt?.toISOString(),
-      isAutoSubmit: submission.isAutoSubmit
+      isAutoSubmit: submission.isAutoSubmit,
+      attemptNumber: submission.attempt?.attemptNumber || 1,
+      attemptStartedAt: submission.attempt?.startedAt?.toISOString(),
+      attemptCompletedAt: submission.attempt?.completedAt?.toISOString()
     }));
+  }
+
+  /**
+   * Get grouped exam history by exam for a student
+   * @param userId - Student user ID
+   * @returns Exam history grouped by exam with all attempts
+   */
+  async getStudentExamHistoryGrouped(userId: string) {
+    const submissions = await prisma.examSubmission.findMany({
+      where: {
+        userId: userId,
+        gradedAt: { not: null }
+      },
+      include: {
+        exam: {
+          select: {
+            id: true,
+            title: true,
+            status: true
+          }
+        },
+        attempt: {
+          select: {
+            attemptNumber: true,
+            startedAt: true,
+            completedAt: true
+          }
+        }
+      },
+      orderBy: [
+        { examId: 'asc' },
+        { submittedAt: 'desc' }
+      ]
+    });
+
+    // Group submissions by exam
+    const groupedByExam = submissions.reduce((acc, submission) => {
+      const examId = submission.examId;
+      
+      if (!acc[examId]) {
+        acc[examId] = {
+          examId: submission.examId,
+          examTitle: submission.exam.title,
+          examStatus: submission.exam.status,
+          attempts: []
+        };
+      }
+
+      acc[examId].attempts.push({
+        id: submission.id,
+        score: submission.score || 0,
+        totalPoints: submission.totalPoints || 0,
+        percentage: submission.percentage || 0,
+        passed: submission.passed || false,
+        timeSpent: submission.timeSpent,
+        submittedAt: submission.submittedAt.toISOString(),
+        gradedAt: submission.gradedAt?.toISOString(),
+        isAutoSubmit: submission.isAutoSubmit,
+        attemptNumber: submission.attempt?.attemptNumber || 1,
+        attemptStartedAt: submission.attempt?.startedAt?.toISOString(),
+        attemptCompletedAt: submission.attempt?.completedAt?.toISOString()
+      });
+
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Convert to array and sort by latest submission
+    return Object.values(groupedByExam).sort((a: any, b: any) => {
+      const aLatest = Math.max(...a.attempts.map((att: any) => new Date(att.submittedAt).getTime()));
+      const bLatest = Math.max(...b.attempts.map((att: any) => new Date(att.submittedAt).getTime()));
+      return bLatest - aLatest;
+    });
   }
 
   /**
@@ -1853,5 +2341,433 @@ export class ExamService {
       .join('\n');
 
     return csvContent;
+  }
+
+  /**
+   * Get exam summaries for admin dashboard
+   * @returns Array of exam summaries with statistics
+   */
+  async getExamSummariesForAdmin() {
+    const exams = await prisma.exam.findMany({
+      where: {
+        isDeleted: false
+      },
+      include: {
+        questions: {
+          select: {
+            id: true
+          }
+        },
+        _count: {
+          select: {
+            submissions: {
+              where: {
+                gradedAt: { not: null }
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Get submission statistics for each exam
+    const examSummaries = await Promise.all(
+      exams.map(async (exam) => {
+        const submissions = await prisma.examSubmission.findMany({
+          where: {
+            examId: exam.id,
+            gradedAt: { not: null }
+          },
+          select: {
+            score: true,
+            totalPoints: true,
+            percentage: true,
+            passed: true,
+            userId: true
+          }
+        });
+
+        // Get unique students count
+        const uniqueStudents = new Set(submissions.map(s => s.userId)).size;
+        const completedStudents = submissions.length;
+
+        // Calculate statistics
+        const scores = submissions.map(s => s.score || 0);
+        const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+        const highestScore = scores.length > 0 ? Math.max(...scores) : 0;
+        const lowestScore = scores.length > 0 ? Math.min(...scores) : 0;
+        const passedCount = submissions.filter(s => s.passed).length;
+        const passRate = submissions.length > 0 ? (passedCount / submissions.length) * 100 : 0;
+
+        // Map exam status
+        let status: 'active' | 'archived' | 'draft';
+        switch (exam.status) {
+          case 'PUBLISHED':
+            status = 'active';
+            break;
+          case 'ARCHIVED':
+            status = 'archived';
+            break;
+          default:
+            status = 'draft';
+            break;
+        }
+
+        return {
+          id: exam.id,
+          title: exam.title,
+          totalStudents: uniqueStudents,
+          completedStudents: completedStudents,
+          averageScore: Math.round(averageScore * 100) / 100,
+          highestScore: Math.round(highestScore * 100) / 100,
+          lowestScore: Math.round(lowestScore * 100) / 100,
+          passRate: Math.round(passRate * 100) / 100,
+          createdAt: exam.createdAt.toISOString(),
+          status
+        };
+      })
+    );
+
+    return examSummaries;
+  }
+
+  /**
+   * Get student summaries for admin dashboard
+   */
+  async getStudentSummariesForAdmin() {
+    // Get all users with exam statistics
+    const users = await prisma.user.findMany({
+      where: {
+        role: 'STUDENT'
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        createdAt: true,
+        lastLoginAt: true,
+        examSubmissions: {
+          where: {
+            gradedAt: { not: null }
+          },
+          select: {
+            score: true,
+            totalPoints: true,
+            percentage: true,
+            passed: true,
+            submittedAt: true
+          }
+        }
+      }
+    });
+
+    return users.map(user => {
+      const submissions = user.examSubmissions;
+      const totalExams = submissions.length;
+      const passedExams = submissions.filter(s => s.passed).length;
+      const averageScore = totalExams > 0 
+        ? submissions.reduce((sum, s) => sum + (s.percentage || 0), 0) / totalExams 
+        : 0;
+
+      // Determine performance level
+      let performance: 'excellent' | 'good' | 'average' | 'needs_improvement' = 'needs_improvement';
+      if (averageScore >= 90) performance = 'excellent';
+      else if (averageScore >= 75) performance = 'good';
+      else if (averageScore >= 60) performance = 'average';
+
+      return {
+        id: user.id,
+        name: user.username,
+        email: user.email,
+        totalExams: totalExams,
+        completedExams: totalExams, // Since we're only getting completed ones
+        averageScore: Math.round(averageScore * 10) / 10,
+        lastActivity: user.lastLoginAt?.toISOString() || user.createdAt.toISOString(),
+        overallPerformance: performance
+      };
+    });
+  }
+
+  /**
+   * Get all results for a specific exam (Admin only)
+   */
+  async getExamAllResults(examId: string) {
+    const submissions = await prisma.examSubmission.findMany({
+      where: {
+        examId: examId,
+        gradedAt: { not: null }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true
+          }
+        },
+        exam: {
+          select: {
+            questions: {
+              select: {
+                id: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: [
+        { percentage: 'desc' },
+        { submittedAt: 'asc' }
+      ]
+    });
+
+    // Get attempt numbers from sessions
+    const submissionIds = submissions.map(s => s.id);
+    const sessions = await prisma.examSession.findMany({
+      where: {
+        submissionId: { in: submissionIds }
+      },
+      select: {
+        submissionId: true,
+        attemptNumber: true
+      }
+    });
+
+    const sessionMap = new Map(sessions.map(s => [s.submissionId!, s.attemptNumber]));
+
+    return submissions.map((submission, index) => {
+      const totalQuestions = submission.exam.questions.length;
+      const answers = submission.answers as unknown as ExamAnswer[];
+      const correctAnswers = answers.filter(answer => {
+        // This is a simplified calculation - in a real implementation,
+        // you'd need to properly grade each answer
+        return true; // Placeholder
+      }).length;
+
+      return {
+        id: submission.id,
+        studentId: submission.userId,
+        studentName: submission.user.username,
+        studentEmail: submission.user.email,
+        score: submission.score || 0,
+        totalPoints: submission.totalPoints || 0,
+        percentage: submission.percentage || 0,
+        passed: submission.passed || false,
+        timeSpent: submission.timeSpent,
+        submittedAt: submission.submittedAt.toISOString(),
+        gradedAt: submission.gradedAt?.toISOString(),
+        attemptNumber: sessionMap.get(submission.id) || 1,
+        correctAnswers: correctAnswers,
+        totalQuestions: totalQuestions,
+        isAutoSubmit: submission.isAutoSubmit,
+        rank: index + 1
+      };
+    });
+  }
+
+  /**
+   * Get exam info and statistics (Admin only)
+   */
+  async getExamInfoAndStats(examId: string) {
+    const exam = await prisma.exam.findUnique({
+      where: { id: examId },
+      include: {
+        questions: {
+          include: {
+            question: {
+              select: {
+                points: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!exam) {
+      throw new Error('Exam not found');
+    }
+
+    const submissions = await prisma.examSubmission.findMany({
+      where: {
+        examId: examId,
+        gradedAt: { not: null }
+      },
+      select: {
+        score: true,
+        totalPoints: true,
+        percentage: true,
+        passed: true,
+        timeSpent: true
+      }
+    });
+
+    const totalQuestions = exam.questions.length;
+    const totalPoints = exam.questions.reduce((sum, eq) => sum + (eq.points || eq.question.points), 0);
+    const passingScore = Math.floor(totalPoints * 0.5); // 50% passing score
+
+    // Calculate statistics
+    const totalStudents = submissions.length;
+    const completedStudents = totalStudents; // Since we're only getting completed ones
+    const scores = submissions.map(s => s.score || 0);
+    const percentages = submissions.map(s => s.percentage || 0);
+    const times = submissions.map(s => s.timeSpent || 0);
+
+    const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    const averagePercentage = percentages.length > 0 ? percentages.reduce((a, b) => a + b, 0) / percentages.length : 0;
+    const averageTime = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0;
+    const highestScore = scores.length > 0 ? Math.max(...scores) : 0;
+    const lowestScore = scores.length > 0 ? Math.min(...scores) : 0;
+    const passedCount = submissions.filter(s => s.passed).length;
+    const passRate = totalStudents > 0 ? (passedCount / totalStudents) * 100 : 0;
+
+    // Score distribution
+    const scoreDistribution: Record<string, number> = {
+      '90-100': 0,
+      '80-89': 0,
+      '70-79': 0,
+      '60-69': 0,
+      '50-59': 0,
+      '0-49': 0
+    };
+
+    percentages.forEach(percentage => {
+      if (percentage >= 90) scoreDistribution['90-100']++;
+      else if (percentage >= 80) scoreDistribution['80-89']++;
+      else if (percentage >= 70) scoreDistribution['70-79']++;
+      else if (percentage >= 60) scoreDistribution['60-69']++;
+      else if (percentage >= 50) scoreDistribution['50-59']++;
+      else scoreDistribution['0-49']++;
+    });
+
+    // Safely extract settings with null check
+    const settings = (exam.settings as unknown as ExamSettings) || null;
+    const timeLimit = settings?.timeLimit || 60; // Default 60 minutes if not set
+
+    return {
+      examInfo: {
+        id: exam.id,
+        title: exam.title,
+        description: exam.description,
+        totalQuestions: totalQuestions,
+        totalPoints: totalPoints,
+        passingScore: passingScore,
+        timeLimit: timeLimit,
+        createdAt: exam.createdAt.toISOString(),
+        status: exam.status.toLowerCase() as 'active' | 'archived' | 'draft'
+      },
+      statistics: {
+        totalStudents,
+        completedStudents,
+        averageScore: Math.round(averageScore * 10) / 10,
+        averagePercentage: Math.round(averagePercentage * 10) / 10,
+        averageTime: Math.round(averageTime * 10) / 10,
+        highestScore,
+        lowestScore,
+        passRate: Math.round(passRate * 10) / 10,
+        scoreDistribution
+      }
+    };
+  }
+
+  /**
+   * Get student info and statistics (Admin only)
+   */
+  async getStudentInfoAndStats(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        examSubmissions: {
+          where: {
+            gradedAt: { not: null }
+          },
+          include: {
+            exam: {
+              select: {
+                title: true
+              }
+            }
+          },
+          orderBy: {
+            submittedAt: 'desc'
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new Error('Student not found');
+    }
+
+    const submissions = user.examSubmissions;
+    const totalExamsAvailable = await prisma.exam.count({
+      where: {
+        status: 'PUBLISHED'
+      }
+    });
+
+    // Calculate statistics
+    const totalExamsCompleted = submissions.length;
+    const scores = submissions.map(s => s.score || 0);
+    const percentages = submissions.map(s => s.percentage || 0);
+    const times = submissions.map(s => s.timeSpent || 0);
+
+    const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    const averagePercentage = percentages.length > 0 ? percentages.reduce((a, b) => a + b, 0) / percentages.length : 0;
+    const averageTime = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0;
+    const bestScore = scores.length > 0 ? Math.max(...scores) : 0;
+    const worstScore = scores.length > 0 ? Math.min(...scores) : 0;
+    const passedCount = submissions.filter(s => s.passed).length;
+    const passRate = totalExamsCompleted > 0 ? (passedCount / totalExamsCompleted) * 100 : 0;
+    const totalTimeSpent = times.reduce((a, b) => a + b, 0);
+    const completionRate = totalExamsAvailable > 0 ? (totalExamsCompleted / totalExamsAvailable) * 100 : 0;
+
+    // Determine performance based on average score
+    let performance: 'excellent' | 'good' | 'average' | 'needs_improvement' = 'needs_improvement';
+    if (averagePercentage >= 90) performance = 'excellent';
+    else if (averagePercentage >= 75) performance = 'good';
+    else if (averagePercentage >= 60) performance = 'average';
+
+    // Simple trend calculation based on recent vs older scores
+    let performanceTrend: 'improving' | 'declining' | 'stable' = 'stable';
+    if (percentages.length >= 3) {
+      const recentAvg = percentages.slice(0, Math.floor(percentages.length / 2)).reduce((a, b) => a + b, 0) / Math.floor(percentages.length / 2);
+      const olderAvg = percentages.slice(Math.floor(percentages.length / 2)).reduce((a, b) => a + b, 0) / (percentages.length - Math.floor(percentages.length / 2));
+      
+      if (recentAvg > olderAvg + 5) performanceTrend = 'improving';
+      else if (recentAvg < olderAvg - 5) performanceTrend = 'declining';
+    }
+
+    return {
+      studentInfo: {
+        id: user.id,
+        name: user.username,
+        email: user.email,
+        studentId: user.id, // Using ID as student ID for now
+        joinedAt: user.createdAt.toISOString(),
+        lastActivity: user.lastLoginAt?.toISOString() || user.createdAt.toISOString(),
+        totalExams: totalExamsAvailable,
+        completedExams: totalExamsCompleted,
+        averageScore: Math.round(averagePercentage * 10) / 10,
+        overallPerformance: performance
+      },
+      statistics: {
+        totalExamsCompleted,
+        totalExamsAvailable,
+        averageScore: Math.round(averageScore * 10) / 10,
+        averagePercentage: Math.round(averagePercentage * 10) / 10,
+        averageTime: Math.round(averageTime * 10) / 10,
+        bestScore,
+        worstScore,
+        passRate: Math.round(passRate * 10) / 10,
+        totalTimeSpent,
+        streakDays: 0, // Placeholder - would need more complex calculation
+        completionRate: Math.round(completionRate * 10) / 10,
+        performanceTrend
+      }
+    };
   }
 } 

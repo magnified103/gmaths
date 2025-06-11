@@ -1,6 +1,6 @@
 /**
  * WebSocket hook for real-time timer synchronization
- * Provides connection management and timer sync functionality
+ * Simplified connection management for stable timer sync
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -19,6 +19,7 @@ interface UseWebSocketTimerOptions {
   onTimeSync?: (data: TimerSyncData) => void;
   onTimeUp?: () => void;
   onConnectionChange?: (connected: boolean) => void;
+  sessionId?: string;
 }
 
 interface UseWebSocketTimerReturn {
@@ -31,8 +32,7 @@ interface UseWebSocketTimerReturn {
 
 /**
  * Custom hook for WebSocket timer functionality
- * @param options - Configuration options for WebSocket timer
- * @returns WebSocket timer state and methods
+ * Simplified to avoid reconnection loops and session conflicts
  */
 export const useWebSocketTimer = ({
   examId,
@@ -40,24 +40,22 @@ export const useWebSocketTimer = ({
   onTimeSync,
   onTimeUp,
   onConnectionChange,
+  sessionId,
 }: UseWebSocketTimerOptions): UseWebSocketTimerReturn => {
   const [isConnected, setIsConnected] = useState(false);
   const [lastSync, setLastSync] = useState<TimerSyncData | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   
   const socketRef = useRef<Socket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const connectionAttemptRef = useRef(0);
-  const lastDisconnectTimeRef = useRef(0);
-  const isCleanupRef = useRef(false);
-  const initializingRef = useRef(false);
+  const mountedRef = useRef<boolean>(true);
+  const currentSessionRef = useRef<string | undefined>(sessionId);
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Stabilize callback refs to prevent unnecessary re-renders
+  // Stabilize callback refs
   const onTimeSyncRef = useRef(onTimeSync);
   const onTimeUpRef = useRef(onTimeUp);
   const onConnectionChangeRef = useRef(onConnectionChange);
 
-  // Update refs when callbacks change
   useEffect(() => {
     onTimeSyncRef.current = onTimeSync;
     onTimeUpRef.current = onTimeUp;
@@ -65,146 +63,105 @@ export const useWebSocketTimer = ({
   }, [onTimeSync, onTimeUp, onConnectionChange]);
 
   /**
-   * Initialize WebSocket connection with proper cleanup handling
+   * Initialize WebSocket connection
    */
   const initializeConnection = useCallback(() => {
-    if (!enabled || !examId || isCleanupRef.current || initializingRef.current) return;
+    if (!enabled || !examId || !mountedRef.current) return;
 
-    // Debounce connection attempts to handle React Strict Mode
-    const now = Date.now();
-    if (now - lastDisconnectTimeRef.current < 1000) {
-      return; // Skip if disconnected recently
+    const token = localStorage.getItem('auth-token');
+    if (!token) return;
+
+    // Clean up existing connection
+    if (socketRef.current) {
+      socketRef.current.removeAllListeners();
+      socketRef.current.disconnect();
+      socketRef.current = null;
     }
 
-    // Prevent multiple concurrent connections
-    if (socketRef.current?.connected) {
-      return;
-    }
+    console.log(`🔌 Connecting WebSocket for exam: ${examId}`);
 
-    // Prevent rapid successive connection attempts
-    if (socketRef.current && !socketRef.current.connected) {
-      return;
-    }
+    // Create new socket connection
+    const socket = io('http://localhost:3000', {
+      auth: { token },
+      transports: ['websocket'],
+      timeout: 10000,
+      reconnection: false, // Disable auto-reconnection to prevent loops
+      autoConnect: true,
+    });
 
-    try {
-      const token = localStorage.getItem('auth-token');
-      if (!token) {
-        return;
-      }
+    socketRef.current = socket;
 
-      initializingRef.current = true;
-      connectionAttemptRef.current += 1;
-      const attemptNumber = connectionAttemptRef.current;
-
-      // Reduce logging noise in development mode
-      const shouldLog = process.env.NODE_ENV === 'production' || attemptNumber <= 1;
+    socket.on('connect', () => {
+      if (!mountedRef.current) return;
       
-      // Clean up existing connection gracefully
-      if (socketRef.current) {
-        socketRef.current.removeAllListeners();
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
+      console.log('✅ WebSocket connected');
+      setIsConnected(true);
+      setConnectionError(null);
+      onConnectionChangeRef.current?.(true);
 
-      if (shouldLog) {
-        console.log(`🔌 Initializing WebSocket for exam: ${examId}`);
-      }
-
-      // Create new socket connection with better configuration
-      const socket = io('http://localhost:3000', {
-        auth: {
-          token,
-        },
-        transports: ['websocket', 'polling'], // Fallback to polling if WebSocket fails
-        timeout: 15000, // Increased timeout
-        forceNew: false, // Allow connection reuse
-        reconnection: true, // Enable auto-reconnection
-        reconnectionAttempts: 3, // Limit reconnection attempts
-        reconnectionDelay: 2000, // Delay between reconnections
-        autoConnect: true,
-      });
-
-      socketRef.current = socket;
-
-      // Connection event handlers
-      socket.on('connect', () => {
-        initializingRef.current = false;
-        if (shouldLog) {
-          console.log('✅ WebSocket connected for timer sync');
-        }
-        setIsConnected(true);
-        setConnectionError(null);
-        onConnectionChangeRef.current?.(true);
-
-        // Request initial timer sync
-        if (examId) {
-          socket.emit('timer:sync', { examId });
-        }
-      });
-
-      socket.on('disconnect', (reason) => {
-        initializingRef.current = false;
-        lastDisconnectTimeRef.current = Date.now();
+      // Request immediate timer sync
+      if (examId) {
+        console.log(`📡 Requesting timer sync for exam: ${examId}`);
+        socket.emit('timer:sync', { examId });
         
-        // Only log if it's not a normal client disconnect in development
-        if (shouldLog && !reason.includes('client') && !reason.includes('disconnect')) {
-          console.warn('⚠️ WebSocket disconnected:', reason);
+        // Set up periodic sync requests (every 30 seconds)
+        if (syncIntervalRef.current) {
+          clearInterval(syncIntervalRef.current);
         }
         
-        setIsConnected(false);
-        onConnectionChangeRef.current?.(false);
+        syncIntervalRef.current = setInterval(() => {
+          if (socketRef.current?.connected && examId && mountedRef.current) {
+            socket.emit('timer:sync', { examId });
+          }
+        }, 30000);
+      }
+    });
 
-        // Only auto-reconnect for server-side disconnections, not client-side
-        if (!isCleanupRef.current && reason === 'io server disconnect') {
-          setConnectionError('Server disconnected');
-          // Schedule reconnection
-          reconnectTimeoutRef.current = setTimeout(() => {
-            if (!isCleanupRef.current && shouldLog) {
-              console.log('🔄 Attempting to reconnect WebSocket...');
-            }
-            initializeConnection();
-          }, 3000);
-        } else if (reason === 'transport close' || reason === 'transport error') {
-          // Schedule reconnection for transport issues
-          reconnectTimeoutRef.current = setTimeout(() => {
-            if (!isCleanupRef.current) {
-              initializeConnection();
-            }
-          }, 3000);
-        }
-      });
+    socket.on('disconnect', (reason) => {
+      if (!mountedRef.current) return;
+      
+      console.log('🔌 WebSocket disconnected:', reason);
+      setIsConnected(false);
+      onConnectionChangeRef.current?.(false);
+      
+      // Clear sync interval on disconnect
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+    });
 
-      socket.on('connect_error', (error) => {
-        initializingRef.current = false;
-        console.error('❌ WebSocket connection error:', error);
-        setConnectionError(`Connection failed: ${error.message}`);
-        setIsConnected(false);
-        onConnectionChangeRef.current?.(false);
-      });
+    socket.on('connect_error', (error) => {
+      if (!mountedRef.current) return;
+      
+      console.warn('⚠️ WebSocket connection error:', error.message);
+      setConnectionError(`Connection failed: ${error.message}`);
+      setIsConnected(false);
+      onConnectionChangeRef.current?.(false);
+    });
 
-      // Timer-specific event handlers
-      socket.on('timer:sync', (data: TimerSyncData) => {
-        console.log('⏱️ Timer sync received:', data);
-        setLastSync(data);
-        onTimeSyncRef.current?.(data);
-      });
+    // Timer-specific events
+    socket.on('timer:sync', (data: TimerSyncData) => {
+      if (!mountedRef.current || currentSessionRef.current !== sessionId) return;
+      
+      console.log('⏱️ Timer sync received:', data.timeRemaining);
+      setLastSync(data);
+      onTimeSyncRef.current?.(data);
+    });
 
-      socket.on('timer:timeUp', () => {
-        console.log('⏰ Time up received from server');
-        onTimeUpRef.current?.();
-      });
+    socket.on('timer:timeUp', () => {
+      if (!mountedRef.current || currentSessionRef.current !== sessionId) return;
+      
+      console.log('⏰ Time up received from server');
+      onTimeUpRef.current?.();
+    });
 
-      socket.on('timer:error', (error: { message: string }) => {
-        console.error('❌ Timer error:', error);
-        setConnectionError(error.message);
-      });
+    socket.on('timer:error', (error: { message: string }) => {
+      console.error('❌ Timer error:', error);
+      setConnectionError(error.message);
+    });
 
-    } catch (error) {
-      initializingRef.current = false;
-      console.error('❌ Failed to initialize WebSocket connection:', error);
-      setConnectionError(`Initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }, [examId, enabled]); // Removed callback dependencies to prevent re-creation
+  }, [examId, enabled, sessionId]);
 
   /**
    * Request timer synchronization
@@ -216,17 +173,15 @@ export const useWebSocketTimer = ({
   }, [examId]);
 
   /**
-   * Disconnect WebSocket with cleanup
+   * Disconnect WebSocket
    */
   const disconnect = useCallback(() => {
-    isCleanupRef.current = true;
-    initializingRef.current = false;
-    
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
+    // Clear sync interval
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+      syncIntervalRef.current = null;
     }
-
+    
     if (socketRef.current) {
       socketRef.current.removeAllListeners();
       socketRef.current.disconnect();
@@ -238,31 +193,38 @@ export const useWebSocketTimer = ({
     setConnectionError(null);
   }, []);
 
-  // Initialize connection when hook mounts or examId/enabled changes
+  /**
+   * Initialize connection when examId or sessionId changes
+   */
   useEffect(() => {
-    isCleanupRef.current = false; // Reset cleanup flag
+    // Update session tracking
+    currentSessionRef.current = sessionId;
     
-    if (enabled && examId) {
-      // Only initialize if we don't already have a connection for this exam
-      if (!socketRef.current?.connected && !initializingRef.current) {
-        // Add a small delay to prevent rapid successive connections in React Strict Mode
-        const timeoutId = setTimeout(() => {
-          if (!isCleanupRef.current && !initializingRef.current) {
-            initializeConnection();
-          }
-        }, 100); // Reduced delay since we fixed the main issue
-        
-        return () => {
-          clearTimeout(timeoutId);
-        };
-      }
+    if (enabled && examId && sessionId) {
+      // Small delay to prevent rapid connections in development mode
+      const timeout = setTimeout(() => {
+        if (mountedRef.current) {
+          initializeConnection();
+        }
+      }, 200);
+      
+      return () => clearTimeout(timeout);
     }
 
-    // Cleanup on unmount or when examId changes
+    return disconnect;
+  }, [examId, sessionId, enabled, initializeConnection, disconnect]);
+
+  /**
+   * Cleanup on unmount
+   */
+  useEffect(() => {
+    mountedRef.current = true;
+    
     return () => {
+      mountedRef.current = false;
       disconnect();
     };
-  }, [examId, enabled]); // Only depend on examId and enabled, not the functions
+  }, [disconnect]);
 
   return {
     isConnected,

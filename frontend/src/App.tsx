@@ -13,9 +13,15 @@ import ExamListPage from './pages/ExamListPage';
 import ExamEditPage from './pages/ExamEditPage';
 import ExamTakingPage from './pages/ExamTakingPage';
 import StudentExamListPage from './pages/StudentExamListPage';
+import StudentResultsPage from './pages/StudentResultsPage';
+import ExamResultPage from './pages/ExamResultPage';
+import ExamAttemptsPage from './pages/ExamAttemptsPage';
+import AdminResultsPage from './pages/AdminResultsPage';
+import ExamResultsManagementPage from './pages/ExamResultsManagementPage';
+import StudentResultsManagementPage from './pages/StudentResultsManagementPage';
+import StudentExamAttemptResultPage from './pages/StudentExamAttemptResultPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AuthGuard from './components/auth/AuthGuard';
-import FullScreenLoader from './components/ui/FullScreenLoader';
 import './index.css';
 
 // Create a client instance for TanStack Query
@@ -91,31 +97,41 @@ function App() {
               } 
             />
             
-            {/* Student Feature Routes - Placeholders for future implementation */}
+            {/* Student Results Routes - Complete Implementation */}
             <Route 
               path="/student/results" 
               element={
                 <ProtectedRoute>
-                  <FullScreenLoader 
-                    variant="page"
-                    message="Kết quả thi - Tính năng đang được phát triển"
-                    showSpinner={false}
-                  />
+                  <StudentResultsPage />
                 </ProtectedRoute>
               } 
             />
             <Route 
-              path="/student/announcements" 
+              path="/student/exams/:examId/attempts" 
               element={
                 <ProtectedRoute>
-                  <FullScreenLoader 
-                    variant="page"
-                    message="Thông báo - Tính năng đang được phát triển"
-                    showSpinner={false}
-                  />
+                  <ExamAttemptsPage />
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/student/exams/:examId/attempts/:attemptNumber/result" 
+              element={
+                <ProtectedRoute>
+                  <ExamResultPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/student/exams/:examId/result" 
+              element={
+                <ProtectedRoute>
+                  <ExamResultPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+
             
             {/* Exam Taking Route - Accessible by all authenticated users */}
             <Route 
@@ -181,43 +197,41 @@ function App() {
               } 
             />
             
-            {/* Future Admin Routes - Ready for implementation */}
+            {/* Admin Results Management Routes - Complete Implementation */}
             <Route 
-              path="/admin/posts" 
+              path="/admin/results" 
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <FullScreenLoader 
-                    variant="page"
-                    message="Bài viết & Thông báo - Tính năng đang được phát triển"
-                    showSpinner={false}
-                  />
+                  <AdminResultsPage />
                 </ProtectedRoute>
               } 
             />
             <Route 
-              path="/admin/analytics" 
+              path="/admin/results/exams/:examId" 
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <FullScreenLoader 
-                    variant="page"
-                    message="Thống kê & Báo cáo - Tính năng đang được phát triển"
-                    showSpinner={false}
-                  />
+                  <ExamResultsManagementPage />
                 </ProtectedRoute>
               } 
             />
             <Route 
-              path="/admin/settings" 
+              path="/admin/results/students/:studentId" 
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <FullScreenLoader 
-                    variant="page"
-                    message="Cài đặt hệ thống - Tính năng đang được phát triển"
-                    showSpinner={false}
-                  />
+                  <StudentResultsManagementPage />
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/admin/results/exams/:examId/students/:studentId/attempts/:attemptNumber" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <StudentExamAttemptResultPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+
           </Routes>
         </div>
       </Router>

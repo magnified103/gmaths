@@ -26,6 +26,17 @@ interface ExamUserParams {
   userId: string;
 }
 
+interface ExamAttemptParams {
+  examId: string;
+  attemptNumber: string;
+}
+
+interface ExamUserAttemptParams {
+  examId: string;
+  userId: string;
+  attemptNumber: string;
+}
+
 interface LeaderboardQuery {
   limit?: string;
 }
@@ -193,6 +204,27 @@ export async function gradingRoutes(fastify: FastifyInstance) {
     });
 
     /**
+     * GET /api/grading/students/me/results/grouped
+     * Get all exam results for current student grouped by exam
+     */
+    fastify.get('/students/me/results/grouped', {
+      preHandler: authenticateToken
+    }, async (request, reply) => {
+      try {
+        const userId = getUserIdFromRequest(request);
+        
+        const results = await examService.getStudentExamHistoryGrouped(userId);
+        
+        reply.send({
+          success: true,
+          data: results
+        });
+      } catch (error) {
+        return handleRouteError(error, reply, 'get grouped student exam history');
+      }
+    });
+
+    /**
      * GET /api/grading/dashboard/stats
      * Get grading dashboard statistics (Admin only)
      */
@@ -251,6 +283,150 @@ export async function gradingRoutes(fastify: FastifyInstance) {
           .send(csvData);
       } catch (error) {
         return handleRouteError(error, reply, 'export exam results');
+      }
+    });
+
+    /**
+     * GET /api/grading/exams/:examId/attempts
+     * Get all attempts for an exam by current student
+     */
+    fastify.get<{ Params: ExamParams }>('/exams/:examId/attempts', {
+      preHandler: authenticateToken
+    }, async (request, reply) => {
+      try {
+        const { examId } = request.params;
+        const userId = getUserIdFromRequest(request);
+        
+        const attempts = await examService.getExamAttempts(examId, userId);
+        
+        reply.send({
+          success: true,
+          data: attempts
+        });
+      } catch (error) {
+        return handleRouteError(error, reply, 'get exam attempts');
+      }
+    });
+
+    /**
+     * GET /api/grading/exams/:examId/attempts/:attemptNumber
+     * Get specific attempt results for current student
+     */
+    fastify.get<{ Params: ExamAttemptParams }>('/exams/:examId/attempts/:attemptNumber', {
+      preHandler: authenticateToken
+    }, async (request, reply) => {
+      try {
+        const { examId, attemptNumber } = request.params;
+        const userId = getUserIdFromRequest(request);
+        const attemptNum = parseInt(attemptNumber, 10);
+        
+        if (isNaN(attemptNum) || attemptNum < 1) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'Invalid attempt number'
+          });
+        }
+        
+        const results = await examService.getExamResultsByAttempt(examId, userId, attemptNum);
+        
+        reply.send({
+          success: true,
+          data: results
+        });
+      } catch (error) {
+        return handleRouteError(error, reply, 'get exam attempt results');
+      }
+    });
+
+    /**
+     * GET /api/grading/exams/:examId/attempts/:userId/:attemptNumber
+     * Get specific attempt results for a student (Admin only)
+     */
+    fastify.get<{ Params: ExamUserAttemptParams }>('/exams/:examId/attempts/:userId/:attemptNumber', {
+      preHandler: [authenticateToken, requireRole('ADMIN')]
+    }, async (request, reply) => {
+      try {
+        const { examId, userId, attemptNumber } = request.params;
+        const attemptNum = parseInt(attemptNumber, 10);
+        
+        if (isNaN(attemptNum) || attemptNum < 1) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'Invalid attempt number'
+          });
+        }
+        
+        const results = await examService.getExamResultsByAttempt(examId, userId, attemptNum);
+        
+        reply.send({
+          success: true,
+          data: results
+        });
+      } catch (error) {
+        return handleRouteError(error, reply, 'get student exam attempt results');
+      }
+    });
+
+    /**
+     * GET /api/grading/exams/:examId/all-results
+     * Get all results for a specific exam (Admin only)
+     */
+    fastify.get<{ Params: ExamParams }>('/exams/:examId/all-results', {
+      preHandler: [authenticateToken, requireRole('ADMIN')]
+    }, async (request, reply) => {
+      try {
+        const { examId } = request.params;
+        
+        const results = await examService.getExamAllResults(examId);
+        
+        reply.send({
+          success: true,
+          data: results
+        });
+      } catch (error) {
+        return handleRouteError(error, reply, 'get all exam results');
+      }
+    });
+
+    /**
+     * GET /api/grading/exams/:examId/info-stats
+     * Get exam info and statistics (Admin only)
+     */
+    fastify.get<{ Params: ExamParams }>('/exams/:examId/info-stats', {
+      preHandler: [authenticateToken, requireRole('ADMIN')]
+    }, async (request, reply) => {
+      try {
+        const { examId } = request.params;
+        
+        const data = await examService.getExamInfoAndStats(examId);
+        
+        reply.send({
+          success: true,
+          data
+        });
+      } catch (error) {
+        return handleRouteError(error, reply, 'get exam info and stats');
+      }
+    });
+
+    /**
+     * GET /api/grading/students/:userId/info-stats
+     * Get student info and statistics (Admin only)
+     */
+    fastify.get<{ Params: UserParams }>('/students/:userId/info-stats', {
+      preHandler: [authenticateToken, requireRole('ADMIN')]
+    }, async (request, reply) => {
+      try {
+        const { userId } = request.params;
+        
+        const data = await examService.getStudentInfoAndStats(userId);
+        
+        reply.send({
+          success: true,
+          data
+        });
+      } catch (error) {
+        return handleRouteError(error, reply, 'get student info and stats');
       }
     });
 

@@ -40,6 +40,9 @@ export interface ExamResult {
   totalStudents?: number;
   averageScore?: number;
   highestScore?: number;
+  attemptNumber: number;
+  attemptStartedAt?: string;
+  attemptCompletedAt?: string;
 }
 
 /**
@@ -87,6 +90,9 @@ export interface StudentExamHistory {
   submittedAt: string;
   gradedAt?: string;
   isAutoSubmit: boolean;
+  attemptNumber: number;
+  attemptStartedAt?: string;
+  attemptCompletedAt?: string;
 }
 
 /**
@@ -137,10 +143,54 @@ export interface RegradeResult {
 }
 
 /**
+ * Interface for exam attempt information
+ */
+export interface ExamAttempt {
+  attemptNumber: number;
+  startedAt: string;
+  completedAt?: string;
+  timeSpent: number;
+  submissionId?: string;
+  submission?: {
+    id: string;
+    score: number;
+    totalPoints: number;
+    percentage: number;
+    passed: boolean;
+    submittedAt: string;
+    gradedAt?: string;
+    isAutoSubmit: boolean;
+  };
+}
+
+/**
+ * Interface for grouped exam history
+ */
+export interface GroupedExamHistory {
+  examId: string;
+  examTitle: string;
+  examStatus: string;
+  attempts: Array<{
+    id: string;
+    score: number;
+    totalPoints: number;
+    percentage: number;
+    passed: boolean;
+    timeSpent: number;
+    submittedAt: string;
+    gradedAt?: string;
+    isAutoSubmit: boolean;
+    attemptNumber: number;
+    attemptStartedAt?: string;
+    attemptCompletedAt?: string;
+  }>;
+}
+
+/**
  * Generic API fetch function with auth
  */
 async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('auth-token');
   
   const response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
@@ -227,7 +277,7 @@ export const regradeExam = async (examId: string): Promise<RegradeResult> => {
  * Export exam results as CSV (Admin only)
  */
 export const exportExamResults = async (examId: string): Promise<Blob> => {
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('auth-token');
   
   const response = await fetch(`${API_BASE_URL}/api/grading/exams/${examId}/export`, {
     method: 'GET',
@@ -242,4 +292,158 @@ export const exportExamResults = async (examId: string): Promise<Blob> => {
   }
 
   return response.blob();
+};
+
+/**
+ * Get all attempts for an exam by current student
+ */
+export const getExamAttempts = async (examId: string): Promise<ExamAttempt[]> => {
+  return apiFetch<ExamAttempt[]>(`/api/grading/exams/${examId}/attempts`);
+};
+
+/**
+ * Get specific attempt results for current student
+ */
+export const getExamAttemptResults = async (examId: string, attemptNumber: number): Promise<ExamResult> => {
+  return apiFetch<ExamResult>(`/api/grading/exams/${examId}/attempts/${attemptNumber}`);
+};
+
+/**
+ * Get specific attempt results for a student (Admin only)
+ */
+export const getStudentExamAttemptResults = async (
+  examId: string, 
+  userId: string, 
+  attemptNumber: number
+): Promise<ExamResult> => {
+  return apiFetch<ExamResult>(`/api/grading/exams/${examId}/attempts/${userId}/${attemptNumber}`);
+};
+
+/**
+ * Get grouped exam history for current student
+ */
+export const getMyGroupedResults = async (): Promise<GroupedExamHistory[]> => {
+  return apiFetch<GroupedExamHistory[]>('/api/grading/students/me/results/grouped');
+};
+
+/**
+ * Get exam summaries for admin dashboard
+ */
+export const getExamSummaries = async (): Promise<Array<{
+  id: string;
+  title: string;
+  totalStudents: number;
+  completedStudents: number;
+  averageScore: number;
+  highestScore: number;
+  lowestScore: number;
+  passRate: number;
+  createdAt: string;
+  status: 'active' | 'archived' | 'draft';
+}>> => {
+  return apiFetch<any[]>('/api/admin/exam-summaries');
+};
+
+/**
+ * Get student summaries for admin dashboard
+ */
+export const getStudentSummaries = async (): Promise<Array<{
+  id: string;
+  name: string;
+  email: string;
+  totalExams: number;
+  completedExams: number;
+  averageScore: number;
+  lastActivity: string;
+  overallPerformance: 'excellent' | 'good' | 'average' | 'needs_improvement';
+}>> => {
+  return apiFetch<any[]>('/api/admin/student-summaries');
+};
+
+/**
+ * Get all exam results for a specific exam (Admin only)
+ */
+export const getExamResultsForExam = async (examId: string): Promise<Array<{
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  score: number;
+  totalPoints: number;
+  percentage: number;
+  passed: boolean;
+  timeSpent: number;
+  submittedAt: string;
+  gradedAt?: string;
+  attemptNumber: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  isAutoSubmit: boolean;
+  rank?: number;
+}>> => {
+  return apiFetch<any[]>(`/api/grading/exams/${examId}/all-results`);
+};
+
+/**
+ * Get exam info and statistics for admin (Admin only)
+ */
+export const getExamInfoAndStats = async (examId: string): Promise<{
+  examInfo: {
+    id: string;
+    title: string;
+    description?: string;
+    totalQuestions: number;
+    totalPoints: number;
+    passingScore: number;
+    timeLimit: number;
+    createdAt: string;
+    status: 'active' | 'archived' | 'draft';
+  };
+  statistics: {
+    totalStudents: number;
+    completedStudents: number;
+    averageScore: number;
+    averagePercentage: number;
+    averageTime: number;
+    highestScore: number;
+    lowestScore: number;
+    passRate: number;
+    scoreDistribution: Record<string, number>;
+  };
+}> => {
+  return apiFetch<any>(`/api/grading/exams/${examId}/info-stats`);
+};
+
+/**
+ * Get student info and statistics for admin (Admin only)
+ */
+export const getStudentInfoAndStats = async (studentId: string): Promise<{
+  studentInfo: {
+    id: string;
+    name: string;
+    email: string;
+    studentId?: string;
+    joinedAt: string;
+    lastActivity: string;
+    totalExams: number;
+    completedExams: number;
+    averageScore: number;
+    overallPerformance: 'excellent' | 'good' | 'average' | 'needs_improvement';
+  };
+  statistics: {
+    totalExamsCompleted: number;
+    totalExamsAvailable: number;
+    averageScore: number;
+    averagePercentage: number;
+    averageTime: number;
+    bestScore: number;
+    worstScore: number;
+    passRate: number;
+    totalTimeSpent: number;
+    streakDays: number;
+    completionRate: number;
+    performanceTrend: 'improving' | 'declining' | 'stable';
+  };
+}> => {
+  return apiFetch<any>(`/api/grading/students/${studentId}/info-stats`);
 }; 

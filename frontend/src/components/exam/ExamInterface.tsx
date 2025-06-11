@@ -144,6 +144,10 @@ export const ExamInterface: React.FC = () => {
     console.log('🔄 Backend session data:', examData.sessionData);
     console.log('🔄 Session ID from backend:', examData.sessionId);
     
+    // Check localStorage for any existing session data
+    const localStorageKey = `exam-session-${examId}`;
+    const localState = localStorage.getItem(localStorageKey);
+    
     // Always prioritize backend session data - it's the source of truth
     if (examData.sessionData && examData.sessionData.startedAt) {
       const backendState: ExamSessionState = {
@@ -157,34 +161,53 @@ export const ExamInterface: React.FC = () => {
       
       console.log('✅ Recovered session state from backend:', backendState);
       
-      // Also update localStorage with the authoritative backend data
-      localStorage.setItem(`exam-session-${examId}`, JSON.stringify(backendState));
+      // Check if this is a different session than what's in localStorage
+      if (localState) {
+        try {
+          const parsedLocal = JSON.parse(localState);
+          if (parsedLocal.sessionId && parsedLocal.sessionId !== examData.sessionId) {
+            console.log('🔄 New exam session detected, clearing old localStorage data');
+            localStorage.removeItem(localStorageKey);
+          }
+        } catch (err) {
+          console.warn('Failed to parse localStorage data:', err);
+          localStorage.removeItem(localStorageKey);
+        }
+      }
+      
+      // Update localStorage with the current authoritative backend data
+      localStorage.setItem(localStorageKey, JSON.stringify(backendState));
       
       return backendState;
     }
 
-    // If backend doesn't have session data, check localStorage as fallback
-    const localState = localStorage.getItem(`exam-session-${examId}`);
+    // If backend doesn't have session data, check localStorage as fallback (but validate session)
     if (localState) {
       try {
         const parsed = JSON.parse(localState);
-        console.log('⚠️ Using localStorage session data (backend had no session data):', parsed);
+        console.log('⚠️ Checking localStorage session data:', parsed);
         
-        // Validate that the session IDs match
+        // Critical check: If localStorage has a different sessionId, this means it's from a previous attempt
+        // We should clear it and start fresh
         if (parsed.sessionId && parsed.sessionId !== examData.sessionId) {
-          console.log('⚠️ Session ID mismatch - localStorage vs backend:', parsed.sessionId, 'vs', examData.sessionId);
+          console.log('🗑️ Session ID mismatch - clearing stale localStorage data:', parsed.sessionId, 'vs', examData.sessionId);
+          localStorage.removeItem(localStorageKey);
+          // Don't return parsed data - fall through to create new state
+        } else {
+          // Session IDs match or localStorage doesn't have sessionId - safe to use
+          console.log('✅ Using localStorage session data (session IDs match)');
+          
+          return {
+            ...parsed,
+            sessionId: examData.sessionId, // Always use the current session ID from backend
+            lastSync: new Date(parsed.lastSync),
+            isDirty: true // Mark as dirty since backend should be updated with this data
+          };
         }
-        
-        return {
-          ...parsed,
-          sessionId: examData.sessionId, // Always use the current session ID from backend
-          lastSync: new Date(parsed.lastSync),
-          isDirty: true // Mark as dirty since backend should be updated with this data
-        };
       } catch (err) {
         console.error('❌ Failed to parse localStorage session:', err);
         // Clear corrupted localStorage data
-        localStorage.removeItem(`exam-session-${examId}`);
+        localStorage.removeItem(localStorageKey);
       }
     }
 
@@ -199,7 +222,7 @@ export const ExamInterface: React.FC = () => {
     };
     
     console.log('🆕 Created new session state:', newState);
-    localStorage.setItem(`exam-session-${examId}`, JSON.stringify(newState));
+    localStorage.setItem(localStorageKey, JSON.stringify(newState));
     
     return newState;
   }, [examId]);
@@ -429,14 +452,12 @@ export const ExamInterface: React.FC = () => {
    * Handle time updates from timer
    */
   const handleTimeUpdate = useCallback((timeRemaining: number) => {
-    if (!sessionState) return;
-
     setSessionState(prev => prev ? {
       ...prev,
       timeRemaining,
       isDirty: true
     } : null);
-  }, [sessionState]);
+  }, []);
 
   /**
    * Navigation handlers for exam questions
@@ -762,6 +783,7 @@ export const ExamInterface: React.FC = () => {
                 onTimeUp={handleTimeUp}
                 onTimeUpdate={handleTimeUpdate}
                 examId={examId}
+                sessionId={sessionState?.sessionId}
               />
               <Button
                 onClick={() => setShowSubmitModal(true)}

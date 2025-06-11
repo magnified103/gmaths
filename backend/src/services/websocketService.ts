@@ -188,25 +188,40 @@ export class WebSocketService {
           });
 
           if (examSession && examSession.exam) {
-                      // Extract timeLimit from settings JSON
-          const settings = examSession.exam.settings as any;
-          const timeLimit = settings?.timeLimit || 60; // Default 60 minutes if not found
-          
-          // Use session's timeRemaining if available (more accurate than recalculating)
-          let timeRemaining: number;
-          if (examSession.timeRemaining !== null && examSession.timeRemaining !== undefined) {
-            // Use the last synced time remaining from the session
-            timeRemaining = Math.max(0, examSession.timeRemaining);
-          } else {
-            // Fallback to calculation from start time
+            // Extract timeLimit from settings JSON
+            const settings = examSession.exam.settings as any;
+            const timeLimit = settings?.timeLimit || 60; // Default 60 minutes if not found
+            
+            // Always calculate time remaining from start time for real-time accuracy
             const startTime = examSession.startedAt.getTime();
             const duration = timeLimit * 60; // Convert minutes to seconds
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            timeRemaining = Math.max(0, duration - elapsed);
-          }
-          
-          const startTime = examSession.startedAt.getTime();
-          const duration = timeLimit * 60;
+            const timeRemaining = Math.max(0, duration - elapsed);
+            
+            // Create a WebSocket timer session for this user if one doesn't exist
+            const sessionKey = `${examId}:${userId}`;
+            if (!this.timerSessions.has(sessionKey)) {
+              console.log(`🔄 Creating WebSocket timer session for existing exam session: ${sessionKey}`);
+              
+              const session: TimerSession = {
+                examId,
+                userId,
+                startTime,
+                duration,
+                socketId: socket.id,
+              };
+
+              this.timerSessions.set(sessionKey, session);
+
+              // Set up auto-end timer for remaining time
+              if (timeRemaining > 0) {
+                const timeoutId = setTimeout(async () => {
+                  await this.endExamTimer(examId, userId);
+                }, timeRemaining * 1000);
+
+                this.timerIntervals.set(sessionKey, timeoutId);
+              }
+            }
 
             const syncData: TimerSyncData = {
               serverTime: Date.now(),
@@ -399,21 +414,35 @@ export class WebSocketService {
           const settings = examSession.exam.settings as any;
           const timeLimit = settings?.timeLimit || 60; // Default 60 minutes if not found
           
-          // Use session's timeRemaining if available (more accurate than recalculating)
-          let timeRemaining: number;
-          if (examSession.timeRemaining !== null && examSession.timeRemaining !== undefined) {
-            // Use the last synced time remaining from the session
-            timeRemaining = Math.max(0, examSession.timeRemaining);
-          } else {
-            // Fallback to calculation from start time
-            const startTime = examSession.startedAt.getTime();
-            const duration = timeLimit * 60; // Convert minutes to seconds
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            timeRemaining = Math.max(0, duration - elapsed);
-          }
-          
+          // Always calculate time remaining from start time for real-time accuracy
           const startTime = examSession.startedAt.getTime();
-          const duration = timeLimit * 60;
+          const duration = timeLimit * 60; // Convert minutes to seconds
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          const timeRemaining = Math.max(0, duration - elapsed);
+          
+          // Create a WebSocket timer session for this user if one doesn't exist
+          if (!this.timerSessions.has(sessionKey)) {
+            console.log(`🔄 Creating WebSocket timer session for HTTP fallback: ${sessionKey}`);
+            
+            const session: TimerSession = {
+              examId,
+              userId,
+              startTime,
+              duration,
+              socketId: 'http-fallback', // Special marker for HTTP-created sessions
+            };
+
+            this.timerSessions.set(sessionKey, session);
+
+            // Set up auto-end timer for remaining time
+            if (timeRemaining > 0) {
+              const timeoutId = setTimeout(async () => {
+                await this.endExamTimer(examId, userId);
+              }, timeRemaining * 1000);
+
+              this.timerIntervals.set(sessionKey, timeoutId);
+            }
+          }
 
           return {
             serverTime: Date.now(),
