@@ -14,6 +14,18 @@ export default defineConfig({
     }
   },
   build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'router-vendor': ['react-router-dom'],
+          'ui-vendor': ['@headlessui/react', '@heroicons/react'],
+          'math-vendor': ['katex', 'mathlive']
+        }
+      }
+    },
     commonjsOptions: {
       include: [/mathlive/, /node_modules/]
     }

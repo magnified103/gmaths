@@ -1,156 +1,207 @@
 #!/bin/bash
 
-# GMATHS AWS Deployment Script
-# This script builds and deploys the application to AWS EC2
+# GMATHS Education Website - Main Deployment Script
+# Run this script after setting up the EC2 instance
 
-set -e # Exit on any error
-
-echo "🚀 Starting GMATHS deployment..."
+set -e
 
 # Configuration
-PROJECT_ROOT="/var/www/gmaths"
-BACKUP_DIR="/var/backups/gmaths"
-LOG_FILE="/var/log/gmaths/deploy.log"
+APP_DIR="/var/www/gmaths"
+BACKEND_DIR="$APP_DIR/backend"
+FRONTEND_DIR="$APP_DIR/frontend"
+REPO_URL="https://github.com/your-username/gmaths-education-website.git"  # Update this
+DOMAIN="yourdomain.com"  # Update this
 
-# Create directories if they don't exist
-sudo mkdir -p "$PROJECT_ROOT"
-sudo mkdir -p "$BACKUP_DIR"
-sudo mkdir -p "/var/log/gmaths"
-sudo mkdir -p "/etc/ssl/certs"
-sudo mkdir -p "/etc/ssl/private"
+echo "=== GMATHS Education Website Deployment ==="
+echo "Deploying to: $APP_DIR"
 
-# Function to log messages
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | sudo tee -a "$LOG_FILE"
+# Function to print colored output
+print_status() {
+    echo -e "\n\033[1;34m=== $1 ===\033[0m"
 }
 
-log "Starting deployment process..."
+print_success() {
+    echo -e "\033[1;32m✓ $1\033[0m"
+}
 
-# Check if running as proper user
+print_error() {
+    echo -e "\033[1;31m✗ $1\033[0m"
+}
+
+# Check if running as correct user
 if [ "$EUID" -eq 0 ]; then
-    log "WARNING: Running as root. Consider using ubuntu user with sudo."
+    print_error "Don't run this script as root!"
+    exit 1
 fi
 
-# Update system packages
-log "Updating system packages..."
-sudo apt-get update -y
-
-# Install required packages if not present
-log "Installing required packages..."
-sudo apt-get install -y nginx postgresql-client redis-tools curl wget git
-
-# Install Node.js 20 if not present
-if ! command -v node &> /dev/null; then
-    log "Installing Node.js 20..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-fi
-
-# Install pnpm if not present
-if ! command -v pnpm &> /dev/null; then
-    log "Installing pnpm..."
-    sudo npm install -g pnpm
-fi
-
-# Install PM2 if not present
-if ! command -v pm2 &> /dev/null; then
-    log "Installing PM2..."
-    sudo npm install -g pm2
-    sudo pm2 startup
-fi
-
-# Backup current deployment if exists
-if [ -d "$PROJECT_ROOT" ]; then
-    log "Creating backup of current deployment..."
-    sudo cp -r "$PROJECT_ROOT" "$BACKUP_DIR/gmaths-$(date +%Y%m%d-%H%M%S)"
-fi
-
-# Stop current PM2 processes
-log "Stopping current backend processes..."
-sudo pm2 stop gmaths-backend || true
-sudo pm2 delete gmaths-backend || true
-
-# Clone/update repository
-if [ ! -d "$PROJECT_ROOT/.git" ]; then
-    log "Cloning repository..."
-    sudo git clone https://github.com/gmaths-education/gmaths-education-website.git "$PROJECT_ROOT"
+print_status "Cloning Repository"
+if [ -d "$APP_DIR" ]; then
+    print_status "Updating existing repository"
+    cd $APP_DIR
+    git pull origin main
 else
-    log "Updating repository..."
-    cd "$PROJECT_ROOT"
-    sudo git fetch origin
-    sudo git reset --hard origin/main
+    print_status "Cloning fresh repository"
+    git clone $REPO_URL $APP_DIR
+    cd $APP_DIR
 fi
 
-cd "$PROJECT_ROOT"
+print_success "Repository ready"
 
-# Set proper ownership
-sudo chown -R ubuntu:ubuntu "$PROJECT_ROOT"
+print_status "Setting up Backend"
+cd $BACKEND_DIR
 
-# Install dependencies
-log "Installing dependencies..."
-pnpm install --frozen-lockfile
+# Create environment file from template
+if [ ! -f ".env" ]; then
+    print_status "Creating backend environment file"
+    cp ../deploy/production.env .env
+    print_error "IMPORTANT: Edit $BACKEND_DIR/.env with your actual configuration!"
+    print_error "Update database credentials, JWT secret, and domain settings"
+    read -p "Press Enter after updating the .env file..."
+fi
 
-# Build frontend
-log "Building frontend..."
-cd frontend
-pnpm build
-cd ..
+# Install backend dependencies
+print_status "Installing backend dependencies"
+pnpm install
+
+# Generate Prisma client
+print_status "Generating Prisma client"
+pnpm db:generate
+
+# Run database migrations
+print_status "Running database migrations"
+pnpm db:push
 
 # Build backend
-log "Building backend..."
-cd backend
+print_status "Building backend"
 pnpm build
-cd ..
 
-# Setup Nginx configuration
-log "Configuring Nginx..."
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/gmaths
+print_success "Backend setup complete"
+
+print_status "Setting up Frontend"
+cd $FRONTEND_DIR
+
+# Create frontend environment file
+if [ ! -f ".env.production" ]; then
+    print_status "Creating frontend environment file"
+    echo "VITE_API_URL=https://$DOMAIN/api" > .env.production
+    echo "VITE_WS_URL=wss://$DOMAIN" >> .env.production
+    echo "VITE_APP_NAME=GMATHS Education Platform" >> .env.production
+    echo "VITE_APP_VERSION=1.0.0" >> .env.production
+fi
+
+# Install frontend dependencies
+print_status "Installing frontend dependencies"
+pnpm install
+
+# Build frontend
+print_status "Building frontend for production"
+pnpm build
+
+print_success "Frontend build complete"
+
+print_status "Configuring Nginx"
+# Copy Nginx configuration
+sudo cp ../deploy/nginx-gmaths.conf /etc/nginx/sites-available/gmaths
+
+# Update domain in Nginx config
+sudo sed -i "s/yourdomain.com/$DOMAIN/g" /etc/nginx/sites-available/gmaths
+
+# Enable site
 sudo ln -sf /etc/nginx/sites-available/gmaths /etc/nginx/sites-enabled/
+
+# Remove default site
 sudo rm -f /etc/nginx/sites-enabled/default
 
 # Test Nginx configuration
+print_status "Testing Nginx configuration"
 sudo nginx -t
 
-# Start backend with PM2
-log "Starting backend with PM2..."
-cd backend
-sudo pm2 start ../deploy/ecosystem.config.js --env production
-
-# Restart Nginx
-log "Restarting Nginx..."
-sudo systemctl restart nginx
-sudo systemctl enable nginx
-
-# Verify health
-log "Verifying deployment health..."
-sleep 10
-
-# Check backend health
-if curl -f http://localhost:3000/health &> /dev/null; then
-    log "✅ Backend health check passed"
+if [ $? -eq 0 ]; then
+    print_success "Nginx configuration is valid"
+    sudo systemctl reload nginx
 else
-    log "❌ Backend health check failed"
+    print_error "Nginx configuration has errors!"
     exit 1
 fi
 
-# Check Nginx
-if sudo systemctl is-active --quiet nginx; then
-    log "✅ Nginx is running"
-else
-    log "❌ Nginx is not running"
-    exit 1
-fi
+print_status "Setting up PM2 for Backend"
+cd $BACKEND_DIR
 
-# Save PM2 process list
-sudo pm2 save
+# Create PM2 ecosystem file
+cat > ecosystem.config.js << EOF
+module.exports = {
+  apps: [{
+    name: 'gmaths-backend',
+    script: 'dist/server.js',
+    instances: 1,
+    exec_mode: 'cluster',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    },
+    error_file: '/var/log/pm2/gmaths-backend-error.log',
+    out_file: '/var/log/pm2/gmaths-backend-out.log',
+    log_file: '/var/log/pm2/gmaths-backend.log',
+    max_memory_restart: '1G',
+    node_args: '--max-old-space-size=1024'
+  }]
+};
+EOF
 
-log "🎉 Deployment completed successfully!"
-log "Frontend is served at: https://gmaths.edu.vn"
-log "Backend API available at: https://gmaths.edu.vn/api"
-log "Health check: https://gmaths.edu.vn/health"
+# Create log directory
+sudo mkdir -p /var/log/pm2
+sudo chown -R $USER:$USER /var/log/pm2
+
+# Start application with PM2
+print_status "Starting backend with PM2"
+pm2 start ecosystem.config.js
+
+# Save PM2 configuration
+pm2 save
+
+# Setup PM2 startup script
+sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME
+
+print_success "Backend started with PM2"
+
+print_status "Creating Upload Directory"
+sudo mkdir -p /var/www/gmaths/uploads
+sudo chown -R www-data:www-data /var/www/gmaths/uploads
+sudo chmod 755 /var/www/gmaths/uploads
+
+print_status "Setting Proper Permissions"
+# Set ownership for web files
+sudo chown -R $USER:www-data $APP_DIR
+sudo chmod -R 755 $APP_DIR
+
+# Set proper permissions for frontend dist
+sudo chown -R www-data:www-data $FRONTEND_DIR/dist
+sudo chmod -R 755 $FRONTEND_DIR/dist
+
+print_success "Deployment Complete!"
 
 echo ""
-echo "🎉 GMATHS deployment completed!"
-echo "📝 Check logs at: $LOG_FILE"
-echo "🔧 PM2 status: sudo pm2 status"
-echo "🌐 Site: https://gmaths.edu.vn" 
+echo "=== Deployment Summary ==="
+echo "✓ Repository cloned/updated"
+echo "✓ Backend built and started with PM2"
+echo "✓ Frontend built and served by Nginx"
+echo "✓ Database configured"
+echo "✓ Nginx configured and running"
+echo ""
+echo "🌐 Your application should be available at: http://$DOMAIN"
+echo ""
+echo "Next steps:"
+echo "1. Point your domain to this EC2 instance's IP address"
+echo "2. Set up SSL certificates (recommended: Let's Encrypt)"
+echo "3. Configure monitoring and backups"
+echo ""
+echo "Useful commands:"
+echo "- Check backend status: pm2 status"
+echo "- View backend logs: pm2 logs gmaths-backend"
+echo "- Restart backend: pm2 restart gmaths-backend"
+echo "- Check nginx status: sudo systemctl status nginx"
+echo "- View nginx logs: sudo tail -f /var/log/nginx/error.log"
+echo ""
+echo "Important files to configure:"
+echo "- Backend environment: $BACKEND_DIR/.env"
+echo "- Nginx configuration: /etc/nginx/sites-available/gmaths" 
