@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -14,6 +14,7 @@ import { AnswerInput } from '../question/AnswerInput';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import { useAutoSave } from '../../hooks/useAutoSave';
 import { 
   checkExamAvailability, 
   fetchExamForTaking, 
@@ -100,24 +101,46 @@ export const ExamInterface: React.FC = () => {
         sessionData: {}
       });
 
-      // Update local state with response from backend
-      const updatedState: ExamSessionState = {
-        sessionId: updatedSession.sessionId,
-        currentQuestion: updatedSession.currentQuestion,
-        timeRemaining: updatedSession.timeRemaining,
-        answers: updatedSession.answers,
-        lastSync: new Date(),
-        isDirty: false
-      };
+      // Only update local state if values actually changed to prevent unnecessary re-renders
+      setSessionState(prevState => {
+        if (!prevState) return null;
+        
+        // Check if any values actually changed
+        const hasChanges = (
+          updatedSession.currentQuestion !== prevState.currentQuestion ||
+          updatedSession.timeRemaining !== prevState.timeRemaining ||
+          JSON.stringify(updatedSession.answers) !== JSON.stringify(prevState.answers)
+        );
+        
+        if (!hasChanges) {
+          // Just update sync metadata without triggering state change
+          const metadataUpdate = {
+            ...prevState,
+            lastSync: new Date(),
+            isDirty: false
+          };
+          localStorage.setItem(`exam-session-${examId}`, JSON.stringify(metadataUpdate));
+          return metadataUpdate;
+        }
 
-      setSessionState(updatedState);
+        // Update state with response from backend only if there are actual changes
+        const updatedState: ExamSessionState = {
+          sessionId: updatedSession.sessionId,
+          currentQuestion: updatedSession.currentQuestion,
+          timeRemaining: updatedSession.timeRemaining,
+          answers: updatedSession.answers,
+          lastSync: new Date(),
+          isDirty: false
+        };
+
+        localStorage.setItem(`exam-session-${examId}`, JSON.stringify(updatedState));
+        return updatedState;
+      });
+
       setLastSyncTime(new Date());
       lastSyncRef.current = new Date();
-
-      // Save to localStorage as backup
-      localStorage.setItem(`exam-session-${examId}`, JSON.stringify(updatedState));
       
-      console.log('Session synced successfully:', updatedState);
+      console.log('Session synced successfully');
     } catch (err) {
       console.error('Session sync failed:', err);
       setSyncError(err instanceof Error ? err.message : 'Đồng bộ thất bại');
@@ -465,15 +488,14 @@ export const ExamInterface: React.FC = () => {
   const goToQuestion = useCallback((index: number) => {
     if (!exam || !sessionState || index < 0 || index >= exam.questions.length) return;
 
-    const newState = {
-      ...sessionState,
+    // Immediate state update for responsive UI
+    setSessionState(prev => prev ? {
+      ...prev,
       currentQuestion: index,
       isDirty: true
-    };
+    } : null);
     
-    setSessionState(newState);
-    
-    // Immediate sync for navigation changes
+    // Sync navigation changes immediately to avoid conflicts
     syncSessionState({ currentQuestion: index });
   }, [exam, sessionState, syncSessionState]);
 
@@ -510,21 +532,27 @@ export const ExamInterface: React.FC = () => {
       newAnswers.push(answerData);
     }
 
-    const newState = {
-      ...sessionState,
+    // Immediate state update for responsive UI
+    setSessionState(prev => prev ? {
+      ...prev,
       answers: newAnswers,
       isDirty: true
-    };
-    
-    setSessionState(newState);
-    
-    // Debounced sync for answer changes (sync after 2 seconds of no changes)
-    const timeoutId = setTimeout(() => {
-      syncSessionState({ answers: newAnswers });
-    }, 2000);
+    } : null);
+  }, [sessionState]);
 
-    return () => clearTimeout(timeoutId);
-  }, [sessionState, syncSessionState]);
+  /**
+   * Auto-save answers to backend
+   */
+  useAutoSave({
+    data: sessionState?.answers || [],
+    onSave: async (answers) => {
+      if (sessionState) {
+        await syncSessionState({ answers });
+      }
+    },
+    delay: 3000, // Save 3 seconds after last answer change
+    enabled: !!sessionState && !isSubmitting
+  });
 
   /**
    * Progress calculation utilities
@@ -546,15 +574,71 @@ export const ExamInterface: React.FC = () => {
   }, [exam, sessionState]);
 
   /**
-   * Get current question answer
+   * Get current question answer - memoized to prevent unnecessary re-renders
    */
   const getCurrentAnswer = useCallback(() => {
     if (!exam || !sessionState) return undefined;
     
     const currentQuestion = exam.questions[sessionState.currentQuestion];
-    const answer = sessionState.answers.find(a => a.questionId === currentQuestion?.id);
+    if (!currentQuestion) return undefined;
+    
+    const answer = sessionState.answers.find(a => a.questionId === currentQuestion.id);
     return answer?.answer;
-  }, [exam, sessionState]);
+  }, [exam, sessionState?.answers, sessionState?.currentQuestion]);
+
+  // Memoize the current question to prevent unnecessary re-renders
+  const currentQuestion = useMemo(() => {
+    if (!exam || !sessionState) return null;
+    return exam.questions[sessionState.currentQuestion] || null;
+  }, [exam, sessionState?.currentQuestion]);
+
+  // Memoize the current answer to prevent unnecessary re-renders
+  const currentAnswer = useMemo(() => {
+    return getCurrentAnswer();
+  }, [getCurrentAnswer]);
+
+  // Memoize questionForInput to prevent AnswerInput re-renders
+  const questionForInput = useMemo(() => {
+    if (!currentQuestion) return null;
+    
+    // Extract image information from various possible locations
+    const getQuestionImageUrl = () => {
+      // Check direct imageUrl property
+      if ((currentQuestion as any).imageUrl) {
+        return (currentQuestion as any).imageUrl;
+      }
+      
+      // Check typeData for images
+      if ((currentQuestion as any).typeData?.imageUrl) {
+        return (currentQuestion as any).typeData.imageUrl;
+      }
+      
+      // Check for imageData in question structure
+      if ((currentQuestion as any).imageData) {
+        return (currentQuestion as any).imageData;
+      }
+      
+      return undefined;
+    };
+    
+    return {
+      ...currentQuestion,
+      type: currentQuestion.type as any,
+      category: null,
+      difficulty: 'medium' as const,
+      createdAt: '',
+      updatedAt: '',
+      createdBy: { id: '', username: '' },
+      // Override with options if available
+      options: currentQuestion.options || [],
+      // Add comprehensive image support
+      imageUrl: getQuestionImageUrl(),
+      // Include typeData for additional question type specific properties
+      typeData: (currentQuestion as any).typeData || {},
+      // Ensure proper question ID is preserved for answer isolation
+      id: currentQuestion.id
+    };
+  }, [currentQuestion]);
 
   // Loading state
   const isLoading = isCheckingAvailability || isLoadingExam;
@@ -728,21 +812,24 @@ export const ExamInterface: React.FC = () => {
     );
   }
 
-  const currentQuestion = exam.questions[sessionState.currentQuestion];
-  const currentAnswer = getCurrentAnswer();
-
-  // Convert exam question to Question-like structure for AnswerInput
-  const questionForInput = {
-    ...currentQuestion,
-    type: currentQuestion.type as any,
-    category: null,
-    difficulty: 'medium' as const,
-    createdAt: '',
-    updatedAt: '',
-    createdBy: { id: '', username: '' },
-    // Override with options if available
-    options: currentQuestion.options || []
-  };
+  if (!currentQuestion || !questionForInput) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Lỗi tải câu hỏi
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Không thể tải câu hỏi hiện tại. Vui lòng thử lại.
+          </p>
+          <Button onClick={() => navigate('/student/dashboard')}>
+            Quay về Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

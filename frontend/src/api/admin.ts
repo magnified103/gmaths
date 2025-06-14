@@ -210,4 +210,29 @@ export async function downloadCSVTemplate(): Promise<Blob> {
   }
   
   return response.blob();
+}
+
+/**
+ * Get comprehensive admin dashboard statistics
+ */
+export async function getAdminDashboardStats(): Promise<{
+  totalUsers: number;
+  totalQuestions: number;
+  totalExams: number;
+  totalSubmissions: number;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/dashboard-stats`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('auth-token')}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch dashboard stats: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.data || data;
 } 

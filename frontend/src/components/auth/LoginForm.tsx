@@ -172,8 +172,8 @@ const LoginForm: React.FC = () => {
           Tài khoản demo:
         </h4>
         <div className="text-sm text-primary-700 space-y-1">
-          <p><strong>Admin:</strong> admin@gmaths.edu.vn / admin123</p>
-          <p><strong>Sinh viên:</strong> student@gmaths.edu.vn / student123</p>
+          <p><strong>Admin:</strong> admin@gmaths.edu.vn / Admin@2024!</p>
+          <p><strong>Sinh viên:</strong> test@email.com / Test@1234</p>
         </div>
       </div>
     </form>

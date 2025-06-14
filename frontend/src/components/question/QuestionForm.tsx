@@ -54,6 +54,12 @@ const questionSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard'], {
     errorMap: () => ({ message: 'Vui lòng chọn độ khó' }),
   }),
+  // Optional image URL
+  imageUrl: z
+    .string()
+    .url('URL hình ảnh không hợp lệ')
+    .optional()
+    .or(z.literal('')),
   // Multiple choice/select options
   options: z
     .array(
@@ -139,6 +145,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
         category: '',
         difficulty: 'medium',
         type: 'multiple-choice',
+        imageUrl: '',
         options: [
           { text: '', isCorrect: false },
           { text: '', isCorrect: false },
@@ -156,6 +163,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
       category: typeof question.category === 'string' ? question.category : (question.category?.id || ''),
       difficulty: question.difficulty || 'medium' as const,
       type: question.type,
+      imageUrl: (question as any).imageUrl || '',
     };
 
     // Extract type-specific data from the typeData field (backend stores data here)
@@ -298,6 +306,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
         points: data.points,
         category: data.category,
         difficulty: data.difficulty,
+        imageUrl: data.imageUrl || undefined,
       };
 
       let questionData: QuestionCreateForm;
@@ -493,6 +502,43 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
                 />
               </div>
             )}
+          </div>
+
+          {/* Image URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              URL hình ảnh (tùy chọn)
+            </label>
+            <input
+              type="url"
+              {...register('imageUrl')}
+              placeholder="https://example.com/image.jpg"
+              className={`block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.imageUrl ? 'border-red-300' : ''
+              }`}
+            />
+            {errors.imageUrl && (
+              <p className="mt-1 text-sm text-red-600">{errors.imageUrl.message}</p>
+            )}
+            {watch('imageUrl') && (
+              <div className="mt-2">
+                <p className="text-xs text-gray-600 mb-2">Xem trước hình ảnh:</p>
+                <img 
+                  src={watch('imageUrl')} 
+                  alt="Preview" 
+                  className="max-w-xs max-h-32 object-contain border border-gray-200 rounded"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                  onLoad={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'block';
+                  }}
+                />
+              </div>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              Nhập URL trực tiếp đến hình ảnh. Hình ảnh sẽ hiển thị trong câu hỏi.
+            </p>
           </div>
 
           {/* Question Metadata */}

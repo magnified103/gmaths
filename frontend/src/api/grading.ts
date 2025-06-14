@@ -10,6 +10,11 @@ export interface QuestionResult {
   questionId: string;
   questionContent: string;
   questionType: string;
+  questionOptions?: Array<{
+    id: string;
+    text: string;
+    isCorrect?: boolean;
+  }> | null;
   points: number;
   earnedPoints: number;
   isCorrect: boolean;

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { RichTextDisplay } from '../editor/RichTextDisplay';
 import { MathEditor } from './MathEditor';
 import type { Question } from '../../types/questions';
@@ -20,14 +20,30 @@ export const AnswerInput: React.FC<AnswerInputProps> = ({
   onChange,
   disabled = false,
 }) => {
-  const [selectedOptions, setSelectedOptions] = useState<string[]>(
-    value && Array.isArray(value) ? value : value ? [value] : []
-  );
+  const [selectedOptions, setSelectedOptions] = useState<string[]>(() => {
+    // Initialize based on current value
+    if (value && Array.isArray(value)) return value;
+    if (value && typeof value === 'string') return [value];
+    return [];
+  });
+
+  // Critical fix: Sync local state when value prop changes (when navigating between questions)
+  useEffect(() => {
+    if (value && Array.isArray(value)) {
+      setSelectedOptions(value);
+    } else if (value && typeof value === 'string') {
+      setSelectedOptions([value]);
+    } else if (value === undefined || value === null || value === '') {
+      setSelectedOptions([]);
+    }
+  }, [value, question.id]); // Include question.id to ensure sync on question change
 
   const handleOptionChange = useCallback((optionId: string, isMultiple = false) => {
+    let newSelected: string[];
+    
     if (isMultiple) {
       // Multiple select handling
-      const newSelected = selectedOptions.includes(optionId)
+      newSelected = selectedOptions.includes(optionId)
         ? selectedOptions.filter(id => id !== optionId)
         : [...selectedOptions, optionId];
       
@@ -35,7 +51,8 @@ export const AnswerInput: React.FC<AnswerInputProps> = ({
       onChange(newSelected);
     } else {
       // Single select handling
-      setSelectedOptions([optionId]);
+      newSelected = [optionId];
+      setSelectedOptions(newSelected);
       onChange(optionId);
     }
   }, [selectedOptions, onChange]);
@@ -45,12 +62,51 @@ export const AnswerInput: React.FC<AnswerInputProps> = ({
   }, [onChange]);
 
   const renderQuestionContent = () => {
+    // Enhanced image support - check multiple possible locations for images
+    const getQuestionImage = () => {
+      // Check direct imageUrl property
+      if ((question as any).imageUrl) {
+        return (question as any).imageUrl;
+      }
+      
+      // Check typeData for images (common in question data structures)
+      if ((question as any).typeData?.imageUrl) {
+        return (question as any).typeData.imageUrl;
+      }
+      
+      // Check for base64 or embedded images in content
+      if (question.content && question.content.includes('<img')) {
+        return null; // Images are already in content
+      }
+      
+      return null;
+    };
+
+    const imageUrl = getQuestionImage();
+
     return (
       <div className="mb-6">
         <RichTextDisplay 
           content={question.content} 
           className="text-lg leading-relaxed"
         />
+        
+        {/* Display question image if available */}
+        {imageUrl && (
+          <div className="mt-4">
+            <img 
+              src={imageUrl} 
+              alt="Question illustration"
+              className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+              onError={(e) => {
+                // Hide image if it fails to load
+                (e.target as HTMLImageElement).style.display = 'none';
+                console.warn('Failed to load question image:', imageUrl);
+              }}
+            />
+          </div>
+        )}
+        
         {question.explanation && (
           <div className="mt-2 text-sm text-gray-600">
             <RichTextDisplay content={question.explanation} />

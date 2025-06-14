@@ -120,6 +120,7 @@ export class QuestionService {
           explanation: data.explanation,
           points: data.points,
           difficulty: this.toPrismaDifficulty(data.difficulty) as any, // Prisma enum
+          imageUrl: data.imageUrl, // Include image URL for question images
           typeData: data.typeData as Prisma.InputJsonValue,
           categoryId: data.categoryId,
           createdById,
@@ -197,6 +198,7 @@ export class QuestionService {
       if (data.points) updateData.points = data.points;
       if (data.difficulty) updateData.difficulty = this.toPrismaDifficulty(data.difficulty) as any;
       if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
+      if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl; // Handle image URL updates
       if (data.typeData) updateData.typeData = data.typeData as Prisma.InputJsonValue;
 
       // Handle tag updates if provided

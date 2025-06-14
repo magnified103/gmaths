@@ -22,6 +22,11 @@ interface QuestionResult {
   questionId: string;
   questionContent: string;
   questionType: string;
+  questionOptions?: Array<{
+    id: string;
+    text: string;
+    isCorrect?: boolean;
+  }> | null;
   points: number;
   earnedPoints: number;
   isCorrect: boolean;
@@ -111,6 +116,57 @@ export const ExamResults: React.FC<ExamResultsProps> = ({
     if (percentage >= 70) return 'C';
     if (percentage >= 60) return 'D';
     return 'F';
+  };
+
+  /**
+   * Format answer to display option text instead of option IDs
+   */
+  const formatAnswer = (answer: any, question: QuestionResult): string => {
+    if (!answer) return 'Chưa trả lời';
+    
+    // For multiple choice questions with options
+    if (question.questionType === 'multiple-choice' && question.questionOptions) {
+      if (typeof answer === 'string') {
+        const option = question.questionOptions.find(opt => opt.id === answer);
+        return option ? option.text : answer;
+      }
+    }
+    
+    // For multiple select questions with options
+    if (question.questionType === 'multiple-select' && question.questionOptions) {
+      if (Array.isArray(answer)) {
+        const selectedTexts = answer.map(optId => {
+          const option = question.questionOptions!.find(opt => opt.id === optId);
+          return option ? option.text : optId;
+        });
+        return selectedTexts.join(', ');
+      }
+    }
+    
+    // For true/false questions
+    if (question.questionType === 'true-false') {
+      if (typeof answer === 'boolean') {
+        return answer ? 'Đúng' : 'Sai';
+      }
+      if (typeof answer === 'string') {
+        return answer === 'true' ? 'Đúng' : 'Sai';
+      }
+    }
+    
+    // For fill-in-the-blank questions
+    if (question.questionType === 'fill-blank') {
+      if (typeof answer === 'object' && answer !== null) {
+        return Object.values(answer).join(', ');
+      }
+    }
+    
+    // For essay questions or fallback
+    if (typeof answer === 'string') {
+      return answer;
+    }
+    
+    // Fallback for complex objects
+    return JSON.stringify(answer);
   };
 
   /**
@@ -308,10 +364,7 @@ export const ExamResults: React.FC<ExamResultsProps> = ({
                     <div className={`p-2 rounded ${
                       question.isCorrect ? 'bg-green-100' : 'bg-red-100'
                     }`}>
-                      {typeof question.studentAnswer === 'string' 
-                        ? question.studentAnswer 
-                        : JSON.stringify(question.studentAnswer)
-                      }
+                      {formatAnswer(question.studentAnswer, question)}
                     </div>
                   </div>
                   
@@ -319,10 +372,7 @@ export const ExamResults: React.FC<ExamResultsProps> = ({
                     <div>
                       <h4 className="font-semibold text-gray-700 mb-1">Đáp án đúng:</h4>
                       <div className="p-2 rounded bg-green-100">
-                        {typeof question.correctAnswer === 'string' 
-                          ? question.correctAnswer 
-                          : JSON.stringify(question.correctAnswer)
-                        }
+                        {formatAnswer(question.correctAnswer, question)}
                       </div>
                     </div>
                   )}

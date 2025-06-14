@@ -888,6 +888,33 @@ export class ExamService {
       }
     }
 
+    // Format questions and calculate metrics
+    const formattedQuestions = exam.questions?.map((eq: any) => ({
+      id: eq.id,
+      examId: eq.examId,
+      questionId: eq.questionId,
+      order: eq.order,
+      points: eq.points,
+      createdAt: eq.createdAt,
+      updatedAt: eq.updatedAt,
+      question: eq.question ? {
+        ...eq.question,
+        type: this.fromPrismaQuestionType(eq.question.type)
+      } : eq.question
+    })) || [];
+
+    // Calculate total points and question count
+    const totalPoints = formattedQuestions.reduce((sum: number, eq: any) => {
+      // Use custom points if set, otherwise use question's default points
+      const questionPoints = eq.points ?? eq.question?.points ?? 0;
+      return sum + questionPoints;
+    }, 0);
+
+    const questionCount = formattedQuestions.length;
+
+    // Estimate duration (2 minutes per question as default)
+    const estimatedDuration = Math.max(questionCount * 2, settings.timeLimit || 0);
+
     return {
       id: exam.id,
       title: exam.title,
@@ -901,19 +928,10 @@ export class ExamService {
       isDeleted: exam.isDeleted,
       deletedAt: exam.deletedAt,
       createdBy: exam.createdBy,
-      questions: exam.questions?.map((eq: any) => ({
-        id: eq.id,
-        examId: eq.examId,
-        questionId: eq.questionId,
-        order: eq.order,
-        points: eq.points,
-        createdAt: eq.createdAt,
-        updatedAt: eq.updatedAt,
-        question: eq.question ? {
-          ...eq.question,
-          type: this.fromPrismaQuestionType(eq.question.type)
-        } : eq.question
-      })) || []
+      questions: formattedQuestions,
+      totalPoints,
+      questionCount,
+      estimatedDuration
     };
   }
 
@@ -1107,7 +1125,8 @@ export class ExamService {
                   type: true,
                   content: true,
                   points: true,
-                  typeData: true
+                  typeData: true,
+                  imageUrl: true
                 }
               }
             },
@@ -1226,6 +1245,7 @@ export class ExamService {
           examQuestionId: eq.id,
           type: this.fromPrismaQuestionType(question.type),
           content: question.content,
+          imageUrl: question.imageUrl, // Include image URL for display during exam taking
           points: eq.points || question.points,
           order: eq.order,
           typeData: cleanTypeData,
@@ -1404,7 +1424,8 @@ export class ExamService {
                     type: true,
                     points: true,
                     typeData: true,
-                    explanation: true
+                    explanation: true,
+                    imageUrl: true
                   }
                 }
               },
@@ -1457,7 +1478,8 @@ export class ExamService {
       return {
         questionId: question.id,
         questionContent: question.content,
-        questionType: question.type,
+        questionType: this.fromPrismaQuestionType(question.type), // Convert DB type to frontend format
+        questionOptions: (question.typeData as any)?.options || null,
         points: examQuestion.points || question.points,
         earnedPoints: grading.earnedPoints,
         isCorrect: grading.isCorrect,
@@ -1674,110 +1696,30 @@ export class ExamService {
    * @returns Detailed exam results for the attempt
    */
   async getExamResultsByAttempt(examId: string, userId: string, attemptNumber: number) {
-    // First, try to find the session with submission for this specific attempt
-    const sessionWithSubmission = await prisma.examSession.findFirst({
-      where: {
-        examId: examId,
-        userId: userId,
-        attemptNumber: attemptNumber,
-        submissionId: { not: null }
-      },
-      include: {
-        submission: {
-          include: {
-            exam: {
-              select: {
-                id: true,
-                title: true,
-                questions: {
-                  include: {
-                    question: {
-                      select: {
-                        id: true,
-                        content: true,
-                        type: true,
-                        points: true,
-                        typeData: true,
-                        explanation: true
-                      }
-                    }
-                  },
-                  orderBy: { order: 'asc' }
-                }
-              }
-            },
-            user: {
-              select: {
-                id: true,
-                username: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    if (sessionWithSubmission?.submission) {
-      const submission = sessionWithSubmission.submission;
-      
-      // Get exam statistics for comparison
-      const examStats = await this.getExamStatistics(examId);
-
-      // Process question results with detailed feedback
-      const questionResults = submission.exam.questions.map((examQuestion) => {
-        const question = examQuestion.question;
-        const studentAnswer = (submission.answers as unknown as ExamAnswer[]).find(
-          (answer) => answer.questionId === question.id
-        );
-
-        // Grade this specific question to get detailed feedback
-        const grading = this.gradeQuestionForDisplay(
-          question,
-          studentAnswer,
-          examQuestion.points || question.points
-        );
-
-        return {
-          questionId: question.id,
-          questionContent: question.content,
-          questionType: question.type,
-          points: examQuestion.points || question.points,
-          earnedPoints: grading.earnedPoints,
-          isCorrect: grading.isCorrect,
-          studentAnswer: studentAnswer?.answer,
-          correctAnswer: this.extractCorrectAnswer(question),
-          explanation: question.explanation,
-          timeSpent: studentAnswer?.timeSpent || 0
-        };
-      });
-
-      return {
-        id: submission.id,
-        examId: submission.examId,
-        examTitle: submission.exam.title,
-        studentId: submission.userId,
-        studentName: submission.user.username,
-        score: submission.score || 0,
-        totalPoints: submission.totalPoints || 0,
-        percentage: submission.percentage || 0,
-        passed: submission.passed || false,
-        timeSpent: submission.timeSpent,
-        submittedAt: submission.submittedAt.toISOString(),
-        gradedAt: submission.gradedAt?.toISOString(),
-        questionResults,
-        rank: await this.calculateStudentRank(examId, userId),
-        totalStudents: examStats.totalSubmissions,
-        averageScore: examStats.averageScore,
-        highestScore: examStats.highestScore,
-        attemptNumber: sessionWithSubmission.attemptNumber,
-        attemptStartedAt: sessionWithSubmission.startedAt.toISOString(),
-        attemptCompletedAt: sessionWithSubmission.completedAt?.toISOString()
-      };
+    console.log(`🔍 getExamResultsByAttempt called with examId: ${examId}, userId: ${userId}, attemptNumber: ${attemptNumber}`);
+    
+    // First, get all valid attempts to verify if this attempt exists
+    const allAttempts = await this.getExamAttempts(examId, userId);
+    const requestedAttempt = allAttempts.find(attempt => attempt.attemptNumber === attemptNumber);
+    
+    if (!requestedAttempt) {
+      console.log(`❌ Attempt ${attemptNumber} not found. Available attempts:`, allAttempts.map(a => a.attemptNumber));
+      const error = new Error(`Exam attempt ${attemptNumber} not found for user ${userId}`);
+      (error as any).statusCode = 404;
+      throw error;
     }
 
-    // Fallback: try to find any submission for this user and exam
+    if (!requestedAttempt.submissionId) {
+      console.log(`❌ Attempt ${attemptNumber} has no submission`);
+      const error = new Error(`No submission found for attempt ${attemptNumber}`);
+      (error as any).statusCode = 404;
+      throw error;
+    }
+
+    // Get the submission with all required details
     const submission = await prisma.examSubmission.findFirst({
       where: {
+        id: requestedAttempt.submissionId,
         examId: examId,
         userId: userId
       },
@@ -1795,7 +1737,8 @@ export class ExamService {
                     type: true,
                     points: true,
                     typeData: true,
-                    explanation: true
+                    explanation: true,
+                    imageUrl: true
                   }
                 }
               },
@@ -1809,23 +1752,20 @@ export class ExamService {
             username: true
           }
         }
-      },
-      orderBy: {
-        submittedAt: 'desc' // Get the most recent submission if multiple exist
       }
     });
 
     if (!submission) {
-      throw new Error('Exam attempt not found');
+      console.log(`❌ Submission ${requestedAttempt.submissionId} not found`);
+      const error = new Error(`Submission not found for attempt ${attemptNumber}`);
+      (error as any).statusCode = 404;
+      throw error;
     }
 
-    // Try to find the session for this attempt to get timing details
-    const session = await prisma.examSession.findFirst({
-      where: {
-        examId: examId,
-        userId: userId,
-        attemptNumber: attemptNumber
-      }
+    console.log(`✅ Found submission for attempt ${attemptNumber}:`, {
+      submissionId: submission.id.slice(-8),
+      score: `${submission.score}/${submission.totalPoints}`,
+      submittedAt: submission.submittedAt.toISOString()
     });
 
     // Get exam statistics for comparison
@@ -1848,7 +1788,8 @@ export class ExamService {
       return {
         questionId: question.id,
         questionContent: question.content,
-        questionType: question.type,
+        questionType: this.fromPrismaQuestionType(question.type), // Convert DB type to frontend format
+        questionOptions: (question.typeData as any)?.options || null,
         points: examQuestion.points || question.points,
         earnedPoints: grading.earnedPoints,
         isCorrect: grading.isCorrect,
@@ -1877,9 +1818,9 @@ export class ExamService {
       totalStudents: examStats.totalSubmissions,
       averageScore: examStats.averageScore,
       highestScore: examStats.highestScore,
-      attemptNumber: session?.attemptNumber || attemptNumber,
-      attemptStartedAt: session?.startedAt?.toISOString(),
-      attemptCompletedAt: session?.completedAt?.toISOString()
+      attemptNumber: requestedAttempt.attemptNumber,
+      attemptStartedAt: requestedAttempt.startedAt,
+      attemptCompletedAt: requestedAttempt.completedAt
     };
   }
 

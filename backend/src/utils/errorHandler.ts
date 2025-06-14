@@ -43,6 +43,23 @@ export function handleRouteError(error: any, reply: FastifyReply, context?: stri
     return reply.status(400).send(formattedError);
   }
 
+  // Check for custom status code first
+  if (error instanceof Error && (error as any).statusCode) {
+    const statusCode = (error as any).statusCode;
+    const errorType = statusCode === 404 ? 'Not Found' :
+                     statusCode === 409 ? 'Conflict Error' :
+                     statusCode === 400 ? 'Bad Request' :
+                     statusCode === 401 ? 'Unauthorized' :
+                     statusCode === 403 ? 'Forbidden' :
+                     'Error';
+    
+    return reply.status(statusCode).send({
+      error: errorType,
+      message: error.message,
+      statusCode
+    });
+  }
+
   // Handle known application errors with Vietnamese messages
   if (error instanceof Error && error.message) {
     const knownErrors = [
@@ -53,7 +70,9 @@ export function handleRouteError(error: any, reply: FastifyReply, context?: stri
       { pattern: 'Token xác thực email không hợp lệ', status: 400 },
       { pattern: 'Token đặt lại mật khẩu không hợp lệ', status: 400 },
       { pattern: 'Không tìm thấy', status: 404 },
-      { pattern: 'không tồn tại', status: 404 }
+      { pattern: 'không tồn tại', status: 404 },
+      { pattern: 'not found', status: 404 },
+      { pattern: 'Not found', status: 404 }
     ];
 
     for (const knownError of knownErrors) {

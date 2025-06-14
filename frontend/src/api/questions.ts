@@ -79,6 +79,7 @@ function prepareQuestionData(formData: QuestionCreateForm) {
     difficulty: formData.difficulty, // No conversion needed
     categoryId: formData.category, // Frontend uses 'category', backend expects 'categoryId'
     tagIds: formData.tags || [],
+    imageUrl: formData.imageUrl, // Include imageUrl field
     typeData
   };
 }

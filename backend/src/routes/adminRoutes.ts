@@ -1,13 +1,14 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { UserRole } from '@prisma/client';
+import { UserRole, PrismaClient } from '@prisma/client';
 import { createUser, getUserList, getUserById, updateUser, deleteUser } from '../services/authService';
 import { processBulkUserImport, generateCSVTemplate } from '../services/csvService';
 import { ExamService } from '../services/examService';
 import { authenticateToken, requireRole } from '../utils/authMiddleware';
 import { handleRouteError, successResponse } from '../utils/errorHandler';
 
-// Initialize exam service for admin summaries
+// Initialize prisma client and exam service for admin summaries
+const prisma = new PrismaClient();
 const examService = new ExamService();
 
 /**
@@ -239,6 +240,52 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.send(successResponse(studentSummaries, 'Student summaries retrieved successfully'));
     } catch (error) {
       return handleRouteError(error, reply, 'Get Student Summaries');
+    }
+  });
+
+  /**
+   * GET /admin/dashboard-stats - Get comprehensive dashboard statistics
+   */
+  fastify.get('/admin/dashboard-stats', {
+    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // Get user count
+      const userCount = await prisma.user.count();
+
+      // Get question count
+      const questionCount = await prisma.question.count({
+        where: { isDeleted: false }
+      });
+
+      // Get exam count
+      const examCount = await prisma.exam.count({
+        where: { isDeleted: false }
+      });
+
+      // Get submission count (this month)
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      const submissionCount = await prisma.examSubmission.count({
+        where: {
+          submittedAt: {
+            gte: startOfMonth
+          }
+        }
+      });
+
+      const stats = {
+        totalUsers: userCount,
+        totalQuestions: questionCount,
+        totalExams: examCount,
+        totalSubmissions: submissionCount
+      };
+      
+      return reply.send(successResponse(stats, 'Dashboard statistics retrieved successfully'));
+    } catch (error) {
+      return handleRouteError(error, reply, 'Get Dashboard Stats');
     }
   });
 } 

@@ -205,8 +205,8 @@ export default function ExamListPage() {
         </button>
       )}
 
-      {/* Delete */}
-      {exam.status === 'DRAFT' && (
+      {/* Delete - Allow deletion for DRAFT and ARCHIVED exams */}
+      {(exam.status === 'DRAFT' || exam.status === 'ARCHIVED') && (
         <button
           onClick={() => {
             setSelectedExam(exam);

@@ -14,6 +14,8 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '../components/admin/AdminLayout';
+import { useAdminDashboardStats } from '../hooks/useAdmin';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 interface StatCard {
   title: string;
@@ -37,39 +39,73 @@ interface QuickAction {
  * Provides system statistics and quick access to admin features.
  */
 export default function AdminDashboard() {
-  // Mock statistics - these would come from API calls in a real implementation
+  // Fetch real dashboard statistics
+  const { data: dashboardStats, isLoading, error } = useAdminDashboardStats();
+
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner size="lg" text="Đang tải thống kê..." />
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Không thể tải thống kê
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>Có lỗi xảy ra khi tải dữ liệu thống kê. Vui lòng thử lại.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // Create stats array with real data
   const stats: StatCard[] = [
     {
       title: 'Tổng người dùng',
-      value: '1,234',
-      change: '+12%',
-      changeType: 'increase',
+      value: dashboardStats?.totalUsers?.toLocaleString() || '0',
+      change: '',
+      changeType: 'neutral',
       icon: UsersIcon,
       href: '/admin/users',
     },
     {
       title: 'Câu hỏi trong ngân hàng',
-      value: '567',
-      change: '+8%',
-      changeType: 'increase',
+      value: dashboardStats?.totalQuestions?.toLocaleString() || '0',
+      change: '',
+      changeType: 'neutral',
       icon: AcademicCapIcon,
       href: '/admin/questions',
     },
     {
       title: 'Bài kiểm tra',
-      value: '89',
-      change: '+5%',
-      changeType: 'increase',
+      value: dashboardStats?.totalExams?.toLocaleString() || '0',
+      change: '',
+      changeType: 'neutral',
       icon: DocumentTextIcon,
       href: '/admin/exams',
     },
     {
       title: 'Lượt thi trong tháng',
-      value: '2,345',
-      change: '+23%',
-      changeType: 'increase',
+      value: dashboardStats?.totalSubmissions?.toLocaleString() || '0',
+      change: '',
+      changeType: 'neutral',
       icon: ChartBarIcon,
-      href: '/admin/analytics',
+      href: '/admin/results',
     },
   ];
 

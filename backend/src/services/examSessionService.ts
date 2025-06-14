@@ -74,48 +74,65 @@ export class ExamSessionService {
         });
 
         if (existingSession) {
-          // Improved session expiry logic that's more forgiving for active users
-          const now = new Date();
-          const lastActivity = existingSession.lastActivityAt;
-          const sessionStartTime = existingSession.startedAt;
-          
-          // Check if session has real time remaining (authoritative)
-          const hasTimeRemaining = existingSession.timeRemaining && existingSession.timeRemaining > 0;
-          
-          // Grace period for page refreshes (5 minutes of inactivity allowed)
-          const gracePeriod = 5 * 60 * 1000; // 5 minutes in milliseconds
-          const timeSinceLastActivity = now.getTime() - lastActivity.getTime();
-          const isRecentlyActive = timeSinceLastActivity < gracePeriod;
-          
-          // Calculate theoretical expiry time
-          const sessionExpiryTime = new Date(sessionStartTime.getTime() + (timeLimit * 1000));
-          const isTheoreticallyExpired = now > sessionExpiryTime;
-          
-          // Only consider session expired if:
-          // 1. It has no time remaining AND
-          // 2. It's been inactive for more than grace period AND  
-          // 3. It's theoretically past the time limit
-          const isReallyExpired = !hasTimeRemaining && !isRecentlyActive && isTheoreticallyExpired;
-          
-          if (isReallyExpired) {
-            console.log(`⏰ Session ${existingSession.id} is truly expired (no time left: ${!hasTimeRemaining}, inactive: ${!isRecentlyActive}, past limit: ${isTheoreticallyExpired}), deleting it`);
+          // CRITICAL FIX: Never reuse a session that has been completed (has submissionId)
+          // This prevents the timer issue when students submit early and retake
+          if (existingSession.submissionId) {
+            console.log(`🚫 Session ${existingSession.id} has submissionId ${existingSession.submissionId}, marking as completed and creating new session`);
             
-            // Delete the expired session instead of updating to avoid constraint violations
-            await tx.examSession.delete({
-              where: { id: existingSession.id }
+            // Mark the session as inactive since it should have been completed
+            await tx.examSession.update({
+              where: { id: existingSession.id },
+              data: { 
+                isActive: false,
+                completedAt: existingSession.completedAt || new Date()
+              }
             });
             
             // Continue to create a new session
           } else {
-            // Session is still valid or has grace period, update last activity timestamp
-            console.log(`📋 Resuming existing session ${existingSession.id} for user ${userId} on exam ${examId} (timeRemaining: ${existingSession.timeRemaining}s, lastActivity: ${timeSinceLastActivity}ms ago)`);
+            // Session has no submission yet, check if it's truly expired
+            const now = new Date();
+            const lastActivity = existingSession.lastActivityAt;
+            const sessionStartTime = existingSession.startedAt;
             
-            const updatedSession = await tx.examSession.update({
-              where: { id: existingSession.id },
-              data: { lastActivityAt: new Date() }
-            });
+            // Check if session has real time remaining (authoritative)
+            const hasTimeRemaining = existingSession.timeRemaining && existingSession.timeRemaining > 0;
+            
+            // Grace period for page refreshes (5 minutes of inactivity allowed)
+            const gracePeriod = 5 * 60 * 1000; // 5 minutes in milliseconds
+            const timeSinceLastActivity = now.getTime() - lastActivity.getTime();
+            const isRecentlyActive = timeSinceLastActivity < gracePeriod;
+            
+            // Calculate theoretical expiry time
+            const sessionExpiryTime = new Date(sessionStartTime.getTime() + (timeLimit * 1000));
+            const isTheoreticallyExpired = now > sessionExpiryTime;
+            
+            // Only consider session expired if:
+            // 1. It has no time remaining AND
+            // 2. It's been inactive for more than grace period AND  
+            // 3. It's theoretically past the time limit
+            const isReallyExpired = !hasTimeRemaining && !isRecentlyActive && isTheoreticallyExpired;
+            
+            if (isReallyExpired) {
+              console.log(`⏰ Session ${existingSession.id} is truly expired (no time left: ${!hasTimeRemaining}, inactive: ${!isRecentlyActive}, past limit: ${isTheoreticallyExpired}), deleting it`);
+              
+              // Delete the expired session instead of updating to avoid constraint violations
+              await tx.examSession.delete({
+                where: { id: existingSession.id }
+              });
+              
+              // Continue to create a new session
+            } else {
+              // Session is still valid and has no submission, update last activity timestamp
+              console.log(`📋 Resuming existing session ${existingSession.id} for user ${userId} on exam ${examId} (timeRemaining: ${existingSession.timeRemaining}s, lastActivity: ${timeSinceLastActivity}ms ago)`);
+              
+              const updatedSession = await tx.examSession.update({
+                where: { id: existingSession.id },
+                data: { lastActivityAt: new Date() }
+              });
 
-            return { session: updatedSession, isNew: false };
+              return { session: updatedSession, isNew: false };
+            }
           }
         }
 

@@ -17,6 +17,7 @@ export interface BaseQuestion {
   points: number;
   category: QuestionCategory | null; // Updated to match backend response
   difficulty: Difficulty;
+  imageUrl?: string; // Support for question images via URL
   tags?: Array<{
     id: string;
     name: string;
@@ -120,6 +121,7 @@ export interface QuestionCreateForm {
   category: string;
   difficulty: Difficulty;
   tags?: string[];
+  imageUrl?: string; // Support for question images via URL
   // Type-specific data will be added based on question type
   options?: Omit<QuestionOption, 'id'>[];
   correctAnswer?: boolean;

@@ -41,6 +41,7 @@ model Question {
   explanation String?      @db.Text // Optional explanation
   points      Float        @default(1.0)
   difficulty  Difficulty   @default(MEDIUM)
+  imageUrl    String?      // Optional image URL
   
   // JSON field for type-specific data (options, blanks, etc.)
   typeData    Json

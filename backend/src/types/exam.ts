@@ -53,6 +53,9 @@ export interface ExamWithRelations extends ExamModel {
     username: string;
   };
   questions: ExamQuestionWithQuestion[];
+  totalPoints: number;
+  questionCount: number;
+  estimatedDuration: number;
 }
 
 /**

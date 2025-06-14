@@ -82,6 +82,7 @@ export interface CreateQuestionRequest {
   categoryId?: string;
   tagIds?: string[];
   typeData: QuestionTypeData;
+  imageUrl?: string; // Support for question images via URL
 }
 
 /**
