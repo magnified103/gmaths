@@ -225,7 +225,7 @@ All 20 Phase 1 MVP steps from the implementation plan have been successfully imp
 ## Notes
 - All changes follow the established style guide and coding conventions
 - Vietnamese UI text is maintained throughout
-- Real-time functionality remains stable during updates
+- Real-time functionality remains stable during updates (EXCEPT timer sync bug)
 - Database integrity is preserved during schema changes
 - Comprehensive testing completed for all major features
 - Security audit passed with no critical vulnerabilities

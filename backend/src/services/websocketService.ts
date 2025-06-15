@@ -148,20 +148,23 @@ export class WebSocketService {
         session = this.timerSessions.get(sessionKey) || null;
       }
 
+      // Get current server time for accurate synchronization
+      const currentServerTime = Date.now();
+
       if (session) {
-        // Calculate current time remaining
-        const elapsed = Math.floor((Date.now() - session.startTime) / 1000);
+        // Calculate current time remaining with high precision
+        const elapsed = Math.floor((currentServerTime - session.startTime) / 1000);
         const timeRemaining = Math.max(0, session.duration - elapsed);
 
         const syncData: TimerSyncData = {
-          serverTime: Date.now(),
+          serverTime: currentServerTime,
           examStartTime: session.startTime,
           examDuration: session.duration,
           timeRemaining,
         };
 
         socket.emit('timer:sync', syncData);
-        console.log(`⏱️ Timer sync sent to user ${userId} for exam ${examId}: ${timeRemaining}s remaining`);
+        console.log(`⏱️ Timer sync sent to user ${userId} for exam ${examId}: ${timeRemaining}s remaining [serverTime: ${currentServerTime}]`);
 
         // Auto-end if time is up
         if (timeRemaining <= 0) {
@@ -192,65 +195,63 @@ export class WebSocketService {
             const settings = examSession.exam.settings as any;
             const timeLimit = settings?.timeLimit || 60; // Default 60 minutes if not found
             
-            // Always calculate time remaining from start time for real-time accuracy
+            // Calculate time remaining from database session with high precision
             const startTime = examSession.startedAt.getTime();
             const duration = timeLimit * 60; // Convert minutes to seconds
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const elapsed = Math.floor((currentServerTime - startTime) / 1000);
             const timeRemaining = Math.max(0, duration - elapsed);
             
-            // Create a WebSocket timer session for this user if one doesn't exist
-            const sessionKey = `${examId}:${userId}`;
-            if (!this.timerSessions.has(sessionKey)) {
-              console.log(`🔄 Creating WebSocket timer session for existing exam session: ${sessionKey}`);
-              
-              const session: TimerSession = {
-                examId,
-                userId,
-                startTime,
-                duration,
-                socketId: socket.id,
-              };
+            // Create WebSocket session for consistency
+            const newSession: TimerSession = {
+              examId,
+              userId,
+              startTime,
+              duration,
+              socketId: socket.id,
+            };
 
-              this.timerSessions.set(sessionKey, session);
-
-              // Set up auto-end timer for remaining time
-              if (timeRemaining > 0) {
-                const timeoutId = setTimeout(async () => {
-                  await this.endExamTimer(examId, userId);
-                }, timeRemaining * 1000);
-
-                this.timerIntervals.set(sessionKey, timeoutId);
+            // Store in both Redis and memory for redundancy
+            this.timerSessions.set(sessionKey, newSession);
+            if (this.useRedis && this.redis) {
+              try {
+                await this.redis.setEx(`timer:${sessionKey}`, duration, JSON.stringify(newSession));
+              } catch (error) {
+                console.warn('⚠️ Redis setEx failed:', error);
               }
             }
 
             const syncData: TimerSyncData = {
-              serverTime: Date.now(),
+              serverTime: currentServerTime,
               examStartTime: startTime,
               examDuration: duration,
               timeRemaining,
             };
 
             socket.emit('timer:sync', syncData);
-            console.log(`⏱️ Timer sync sent to user ${userId} for exam ${examId}: ${timeRemaining}s remaining (from DB)`);
+            console.log(`⏱️ Timer sync (DB recovery) sent to user ${userId} for exam ${examId}: ${timeRemaining}s remaining [serverTime: ${currentServerTime}]`);
+
+            // Set up auto-end timer if time remaining
+            if (timeRemaining > 0) {
+              const timeoutId = setTimeout(async () => {
+                await this.endExamTimer(examId, userId);
+              }, timeRemaining * 1000);
+
+              this.timerIntervals.set(sessionKey, timeoutId);
+            }
           } else {
-            socket.emit('timer:error', { 
-              message: 'No active timer session found for this exam' 
-            });
+            console.warn(`❌ No active exam session found for user ${userId}, exam ${examId}`);
+            socket.emit('timer:error', { message: 'No active exam session found' });
           }
           
           await prisma.$disconnect();
         } catch (dbError) {
-          console.warn('⚠️ Database fallback failed in WebSocket:', dbError);
-          socket.emit('timer:error', { 
-            message: 'No active timer session found for this exam' 
-          });
+          console.error(`❌ Database fallback failed for user ${userId}, exam ${examId}:`, dbError);
+          socket.emit('timer:error', { message: 'Failed to retrieve exam session' });
         }
       }
     } catch (error) {
-      console.error(`❌ Timer sync error for user ${userId}, exam ${examId}:`, error);
-      socket.emit('timer:error', { 
-        message: 'Failed to synchronize timer' 
-      });
+      console.error(`❌ Timer sync failed for user ${userId}, exam ${examId}:`, error);
+      socket.emit('timer:error', { message: 'Timer synchronization failed' });
     }
   }
 
@@ -373,6 +374,9 @@ export class WebSocketService {
     const sessionKey = `${examId}:${userId}`;
     let session: TimerSession | null = null;
 
+    // Get current server time for accurate synchronization
+    const currentServerTime = Date.now();
+
     // Try Redis first, then memory
     if (this.useRedis && this.redis) {
       try {
@@ -414,17 +418,17 @@ export class WebSocketService {
           const settings = examSession.exam.settings as any;
           const timeLimit = settings?.timeLimit || 60; // Default 60 minutes if not found
           
-          // Always calculate time remaining from start time for real-time accuracy
+          // Calculate time remaining from database session with high precision
           const startTime = examSession.startedAt.getTime();
           const duration = timeLimit * 60; // Convert minutes to seconds
-          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          const elapsed = Math.floor((currentServerTime - startTime) / 1000);
           const timeRemaining = Math.max(0, duration - elapsed);
           
           // Create a WebSocket timer session for this user if one doesn't exist
           if (!this.timerSessions.has(sessionKey)) {
             console.log(`🔄 Creating WebSocket timer session for HTTP fallback: ${sessionKey}`);
             
-            const session: TimerSession = {
+            const newSession: TimerSession = {
               examId,
               userId,
               startTime,
@@ -432,7 +436,16 @@ export class WebSocketService {
               socketId: 'http-fallback', // Special marker for HTTP-created sessions
             };
 
-            this.timerSessions.set(sessionKey, session);
+            this.timerSessions.set(sessionKey, newSession);
+
+            // Store in Redis for persistence
+            if (this.useRedis && this.redis) {
+              try {
+                await this.redis.setEx(`timer:${sessionKey}`, duration, JSON.stringify(newSession));
+              } catch (error) {
+                console.warn('⚠️ Redis setEx failed in HTTP fallback:', error);
+              }
+            }
 
             // Set up auto-end timer for remaining time
             if (timeRemaining > 0) {
@@ -444,8 +457,10 @@ export class WebSocketService {
             }
           }
 
+          await prisma.$disconnect();
+
           return {
-            serverTime: Date.now(),
+            serverTime: currentServerTime,
             examStartTime: startTime,
             examDuration: duration,
             timeRemaining,
@@ -454,17 +469,18 @@ export class WebSocketService {
         
         await prisma.$disconnect();
       } catch (dbError) {
-        console.warn('⚠️ Database fallback failed:', dbError);
+        console.warn('⚠️ Database fallback failed in HTTP:', dbError);
       }
       
       throw new Error('No active timer session found');
     }
 
-    const elapsed = Math.floor((Date.now() - session.startTime) / 1000);
+    // Calculate time remaining with high precision
+    const elapsed = Math.floor((currentServerTime - session.startTime) / 1000);
     const timeRemaining = Math.max(0, session.duration - elapsed);
 
     return {
-      serverTime: Date.now(),
+      serverTime: currentServerTime,
       examStartTime: session.startTime,
       examDuration: session.duration,
       timeRemaining,

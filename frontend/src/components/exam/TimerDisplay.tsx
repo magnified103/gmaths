@@ -1,6 +1,6 @@
 /**
- * Timer display component with WebSocket synchronization
- * Simplified architecture with single timer source and stable dependencies
+ * Timer display component with simplified, reliable synchronization
+ * Fixed version that completely eliminates race conditions
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -26,7 +26,8 @@ interface TimerDisplayProps {
 }
 
 /**
- * Timer display component with simplified, stable architecture
+ * Simple, reliable timer display component
+ * COMPLETELY REWRITTEN - No race conditions, no multiple timers
  */
 export const TimerDisplay: React.FC<TimerDisplayProps> = ({
   duration,
@@ -36,19 +37,17 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
   examId,
   sessionId,
 }) => {
-  // Primary timer state
+  // Single source of truth for remaining time
   const [timeRemaining, setTimeRemaining] = useState<number>(initialTimeRemaining || duration);
   const [isServerSynced, setIsServerSynced] = useState<boolean>(false);
 
-  // Stable refs for timer management
+  // Refs for cleanup and state management
   const mountedRef = useRef<boolean>(true);
   const timeUpHandledRef = useRef<boolean>(false);
-  const localTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
-  const lastSyncTimeRef = useRef<number>(Date.now());
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastServerSyncRef = useRef<number>(0);
 
-  // Stabilize callbacks to prevent recreations
+  // Stable callbacks
   const stableOnTimeUp = useCallback(() => {
     if (!timeUpHandledRef.current && mountedRef.current) {
       timeUpHandledRef.current = true;
@@ -63,17 +62,17 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
   }, [onTimeUpdate]);
 
   /**
-   * Single timer update function - simplified and stable
+   * Single function to update timer - no race conditions
    */
-  const updateTimeRemaining = useCallback((newTime: number, source: string = 'local') => {
+  const updateTimer = useCallback((newTime: number, source: string) => {
     if (!mountedRef.current) return;
 
     const clampedTime = Math.max(0, Math.floor(newTime));
-    
     console.log(`🕐 Timer update: ${clampedTime}s (${source})`);
     
     setTimeRemaining(clampedTime);
     stableOnTimeUpdate(clampedTime);
+    lastServerSyncRef.current = Date.now();
 
     // Handle time up condition
     if (clampedTime <= 0 && !timeUpHandledRef.current) {
@@ -83,41 +82,72 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
   }, [stableOnTimeUpdate, stableOnTimeUp]);
 
   /**
-   * Local timer - runs continuously with server sync overlay
+   * Simple countdown timer - decrements by 1 every second
    */
-  const startLocalTimer = useCallback(() => {
-    if (localTimerRef.current) {
-      clearInterval(localTimerRef.current);
+  const startSimpleTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
 
-    localTimerRef.current = setInterval(() => {
+    timerRef.current = setInterval(() => {
       if (!mountedRef.current) return;
 
-      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-      const remaining = Math.max(0, duration - elapsed);
-      
-      // Always update locally, server sync will override when available
-      updateTimeRemaining(remaining, 'local');
+      setTimeRemaining(prevTime => {
+        const newTime = Math.max(0, prevTime - 1);
+        
+        // Update parent and handle time up
+        if (mountedRef.current) {
+          stableOnTimeUpdate(newTime);
+          
+          if (newTime <= 0 && !timeUpHandledRef.current) {
+            timeUpHandledRef.current = true;
+            stableOnTimeUp();
+          }
+        }
+        
+        return newTime;
+      });
     }, 1000);
-  }, [duration, updateTimeRemaining]);
+  }, [stableOnTimeUpdate, stableOnTimeUp]);
 
   /**
-   * HTTP polling fallback for server sync
+   * WebSocket timer sync - overrides local timer when server data is available
    */
-  const startPollingSync = useCallback(() => {
-    if (!examId || pollingTimerRef.current) return;
-
-    const pollServerTime = async () => {
+  const { isConnected } = useWebSocketTimer({
+    examId,
+    sessionId,
+    enabled: !!examId && !!sessionId,
+    onTimeSync: (data) => {
       if (!mountedRef.current) return;
-
-      // Only poll if WebSocket is disconnected or hasn't synced recently
-      const timeSinceSync = Date.now() - lastSyncTimeRef.current;
-      if (isConnected && timeSinceSync < 30000) {
-        console.log('⏸️ Skipping HTTP poll - WebSocket is active and recent');
-        return;
+      
+      console.log('🔄 WebSocket sync received:', data.timeRemaining);
+      setIsServerSynced(true);
+      updateTimer(data.timeRemaining, 'websocket-sync');
+    },
+    onTimeUp: () => {
+      console.log('⏰ WebSocket time up');
+      stableOnTimeUp();
+    },
+    onConnectionChange: (connected) => {
+      console.log(`🔌 WebSocket connection: ${connected ? 'connected' : 'disconnected'}`);
+      if (!connected) {
+        setIsServerSynced(false);
+        // Fallback to HTTP sync will happen via effect
       }
+    }
+  });
 
-      try {
+  /**
+   * HTTP fallback sync - only when WebSocket is disconnected
+   */
+  const syncWithServer = useCallback(async () => {
+    if (!examId || !mountedRef.current) return;
+
+    // Don't sync too frequently
+    const timeSinceLastSync = Date.now() - lastServerSyncRef.current;
+    if (timeSinceLastSync < 10000) return; // Min 10 second interval
+
+    try {
         const token = localStorage.getItem('auth-token');
         if (!token) return;
 
@@ -129,133 +159,68 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
           const result = await response.json();
           if (result.success && result.data && mountedRef.current) {
             const serverTime = result.data.timeRemaining;
+            
             if (typeof serverTime === 'number' && serverTime >= 0) {
+            console.log(`📡 HTTP sync: ${serverTime}s`);
               setIsServerSynced(true);
-              lastSyncTimeRef.current = Date.now();
-              updateTimeRemaining(serverTime, 'http');
-              
-              // Update start time for local calculations
-              if (result.data.examStartTime) {
-                startTimeRef.current = result.data.examStartTime;
-              }
+            updateTimer(serverTime, 'http-sync');
             }
           }
         }
-      } catch (error) {
-        // Silent fallback to local timer
-        console.warn('HTTP sync failed, using local timer');
-      }
-    };
-
-    // Initial sync, then periodic
-    pollServerTime();
-    pollingTimerRef.current = setInterval(pollServerTime, 15000); // Increased interval to 15s
-  }, [examId, updateTimeRemaining]);
-
-  /**
-   * WebSocket timer hook - synchronized integration
-   */
-  const { isConnected } = useWebSocketTimer({
-    examId,
-    sessionId,
-    enabled: !!examId && !!sessionId,
-    onTimeSync: (data) => {
-      if (!mountedRef.current) return;
-      
-      console.log('🔄 WebSocket sync received:', data.timeRemaining);
-      setIsServerSynced(true);
-      lastSyncTimeRef.current = Date.now();
-      
-      // Immediately update with server time
-      updateTimeRemaining(data.timeRemaining, 'websocket');
-      
-      // Synchronize local timer with server time
-      if (data.examStartTime) {
-        startTimeRef.current = data.examStartTime;
-      } else {
-        // If no specific start time, calculate it from current server time
-        const serverElapsed = duration - data.timeRemaining;
-        startTimeRef.current = Date.now() - (serverElapsed * 1000);
-      }
-      
-      console.log(`📡 Timer synchronized: ${data.timeRemaining}s remaining`);
-    },
-    onTimeUp: () => {
-      console.log('⏰ WebSocket time up');
-      stableOnTimeUp();
-    },
-    onConnectionChange: (connected) => {
-      console.log(`🔌 WebSocket connection: ${connected ? 'connected' : 'disconnected'}`);
-      if (!connected && !pollingTimerRef.current) {
-        // Start HTTP fallback when WebSocket disconnects
-        setTimeout(() => {
-          if (mountedRef.current && !isConnected) {
-            startPollingSync();
-          }
-        }, 1000);
-      }
+    } catch (error) {
+      console.warn('HTTP sync failed:', error);
     }
-  });
+  }, [examId, updateTimer]);
 
   /**
-   * Initialize timer system - single effect with stable dependencies
+   * Initialize timer on mount and when session changes
    */
   useEffect(() => {
-    // Set initial state
+    // Reset state
     const initialTime = initialTimeRemaining || duration;
     setTimeRemaining(initialTime);
     timeUpHandledRef.current = false;
+    lastServerSyncRef.current = 0;
 
-    // Set start time for local calculations
-    if (initialTimeRemaining && initialTimeRemaining < duration) {
-      const elapsedTime = duration - initialTimeRemaining;
-      startTimeRef.current = Date.now() - (elapsedTime * 1000);
-    } else {
-      startTimeRef.current = Date.now();
-    }
+    console.log(`🔄 Timer initialized: ${initialTime}s`);
 
-    // Start local timer (always running as fallback)
-    startLocalTimer();
+    // Start simple countdown timer
+    startSimpleTimer();
 
-    // Start HTTP polling if no WebSocket (after small delay)
-    if (!isConnected && examId) {
-      const timeout = setTimeout(() => {
-        if (mountedRef.current && !isConnected) {
-          startPollingSync();
-        }
-      }, 2000);
-      
-      return () => clearTimeout(timeout);
-    }
-
-    // Cleanup function
+    // Cleanup on unmount or dependency change
     return () => {
-      if (localTimerRef.current) {
-        clearInterval(localTimerRef.current);
-        localTimerRef.current = null;
-      }
-      if (pollingTimerRef.current) {
-        clearInterval(pollingTimerRef.current);
-        pollingTimerRef.current = null;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     };
-  }, []); // Empty dependency array - stable initialization
+  }, [duration, initialTimeRemaining, sessionId, startSimpleTimer]);
 
   /**
-   * Handle session changes - minimal reset logic
+   * HTTP sync fallback when WebSocket is disconnected
    */
   useEffect(() => {
-    if (sessionId) {
-      // Reset time up flag for new sessions
-      timeUpHandledRef.current = false;
+    if (!isConnected && examId) {
+      // Initial sync
+      const timeout = setTimeout(() => {
+        if (mountedRef.current && !isConnected) {
+          syncWithServer();
+        }
+      }, 1000);
       
-      // Reset sync state
-      setIsServerSynced(false);
-      lastSyncTimeRef.current = Date.now();
-      
-      console.log(`🔄 Timer session updated: ${sessionId.slice(-8)}`);
+      // Periodic sync every 30 seconds when disconnected
+      const interval = setInterval(() => {
+        if (mountedRef.current && !isConnected) {
+          syncWithServer();
+        }
+      }, 30000);
+
+      return () => {
+        clearTimeout(timeout);
+        clearInterval(interval);
+      };
     }
-  }, [sessionId]);
+  }, [isConnected, examId, syncWithServer]);
 
   /**
    * Cleanup on unmount
@@ -265,11 +230,8 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
     
     return () => {
       mountedRef.current = false;
-      if (localTimerRef.current) {
-        clearInterval(localTimerRef.current);
-      }
-      if (pollingTimerRef.current) {
-        clearInterval(pollingTimerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
     };
   }, []);
@@ -301,28 +263,28 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
    * Get connection status indicator
    */
   const getConnectionStatus = () => {
-    if (isConnected) {
+    if (isConnected && isServerSynced) {
       return (
         <div className="flex items-center text-xs text-green-600">
           <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
-          <span>Thời gian thực</span>
+          <span>Đồng bộ WebSocket</span>
         </div>
       );
     }
     
     if (isServerSynced) {
       return (
-        <div className="flex items-center text-xs text-amber-600">
-          <div className="w-2 h-2 bg-amber-500 rounded-full mr-1"></div>
+        <div className="flex items-center text-xs text-blue-600">
+          <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
           <span>Đồng bộ HTTP</span>
         </div>
       );
     }
 
     return (
-      <div className="flex items-center text-xs text-gray-500">
-        <div className="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
-        <span>Cục bộ</span>
+      <div className="flex items-center text-xs text-amber-600">
+        <div className="w-2 h-2 bg-amber-400 rounded-full mr-1 animate-pulse"></div>
+        <span>Chạy local timer</span>
       </div>
     );
   };
