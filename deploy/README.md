@@ -1,3 +1,103 @@
+# Deployment Setup Guide
+
+This guide explains how to properly deploy the GMATHS Education Website to avoid permission issues.
+
+## Prerequisites
+
+- Ubuntu 22.04 LTS server (EC2 instance recommended)
+- SSH access to the server
+- Non-root user with sudo privileges (typically `ubuntu` on EC2)
+
+## Deployment Steps
+
+### Step 1: Initial Server Setup
+
+**Run this FIRST** on your fresh server:
+
+```bash
+# SSH into your server
+ssh -i your-key.pem ubuntu@your-server-ip
+
+# Download and run the EC2 setup script
+wget https://raw.githubusercontent.com/your-repo/gmaths-education-website/main/deploy/ec2-setup-script.sh
+chmod +x ec2-setup-script.sh
+./ec2-setup-script.sh
+```
+
+This script will:
+- Install Node.js, pnpm, PM2, PostgreSQL, Nginx, Redis
+- Create `/var/www/gmaths` directory with proper permissions
+- Configure basic services
+
+### Step 2: Application Deployment
+
+**After the setup script completes**, run the deployment script:
+
+```bash
+# Clone the repository temporarily
+git clone https://github.com/your-repo/gmaths-education-website.git /tmp/gmaths-setup
+cd /tmp/gmaths-setup
+
+# Make deployment script executable
+chmod +x deploy/deploy.sh
+
+# Run deployment script (as ubuntu user, NOT root)
+./deploy/deploy.sh
+```
+
+### Step 3: Environment Configuration
+
+```bash
+# Copy environment template
+cp deploy/env.production.example /var/www/gmaths/backend/.env
+
+# Edit with your actual values
+nano /var/www/gmaths/backend/.env
+```
+
+## Why This Order Matters
+
+The permission issues occur because:
+
+1. **`/var/www/` is owned by root** - Regular users can't write to it
+2. **The deployment script refuses to run as root** - For security reasons
+3. **Directory must be created and ownership changed first** - This is what the EC2 setup script does
+
+## Alternative: User Home Directory Deployment
+
+If you prefer to avoid `/var/www/`, you can deploy to your home directory instead:
+
+```bash
+# Edit deploy.sh and change:
+APP_DIR="/home/ubuntu/gmaths"
+# instead of:
+APP_DIR="/var/www/gmaths"
+```
+
+This avoids permission issues entirely but requires updating Nginx configuration paths.
+
+## Troubleshooting
+
+### Permission Denied Errors
+- Ensure you ran `ec2-setup-script.sh` first
+- Check directory ownership: `ls -la /var/www/`
+- Verify you're running as `ubuntu` user: `whoami`
+
+### Directory Not Found
+- Run the EC2 setup script first
+- Manually create directory: `sudo mkdir -p /var/www/gmaths && sudo chown -R $USER:$USER /var/www/gmaths`
+
+### Command Not Found (pnpm, pm2, etc.)
+- The EC2 setup script installs these dependencies
+- Check if they're installed: `which pnpm`, `which pm2`
+- Reload shell: `source ~/.bashrc`
+
+## Security Notes
+
+- Never run deployment scripts as root
+- Always use a non-root user with sudo privileges
+- The scripts use `sudo` only when necessary for system-level operations
+
 # GMATHS Education Website - AWS EC2 Deployment Guide
 
 This guide provides step-by-step instructions for deploying the GMATHS Education Website to AWS EC2.

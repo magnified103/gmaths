@@ -9,8 +9,8 @@ set -e
 APP_DIR="/var/www/gmaths"
 BACKEND_DIR="$APP_DIR/backend"
 FRONTEND_DIR="$APP_DIR/frontend"
-REPO_URL="https://github.com/your-username/gmaths-education-website.git"  # Update this
-DOMAIN="yourdomain.com"  # Update this
+REPO_URL="https://github.com/pieberrykinnie/gmaths-education-website.git"  # Update this
+DOMAIN="ec2-3-27-173-225.ap-southeast-2.compute.amazonaws.com"  # Update this
 
 echo "=== GMATHS Education Website Deployment ==="
 echo "Deploying to: $APP_DIR"
@@ -30,34 +30,48 @@ print_error() {
 
 # Check if running as correct user
 if [ "$EUID" -eq 0 ]; then
-    print_error "Don't run this script as root!"
+    print_error "Don't run this script as root! Run as ubuntu user."
     exit 1
 fi
 
+# Ensure the application directory exists and has proper ownership
+print_status "Setting up application directory"
+if [ ! -d "$APP_DIR" ]; then
+    print_status "Creating application directory"
+    sudo mkdir -p "$APP_DIR"
+    sudo chown -R "$USER:$USER" "$APP_DIR"
+    print_success "Application directory created and ownership set"
+else
+    # Ensure proper ownership even if directory exists
+    sudo chown -R "$USER:$USER" "$APP_DIR"
+    print_success "Application directory ownership verified"
+fi
+
 print_status "Cloning Repository"
-if [ -d "$APP_DIR" ]; then
+if [ -d "$APP_DIR/.git" ]; then
     print_status "Updating existing repository"
-    cd $APP_DIR
+    cd "$APP_DIR"
     git pull origin main
+elif [ -d "$APP_DIR" ] && [ "$(ls -A $APP_DIR)" ]; then
+    print_status "Removing existing directory contents"
+    rm -rf "$APP_DIR"/*
+    print_status "Cloning fresh repository"
+    git clone "$REPO_URL" /tmp/gmaths-temp
+    cp -r /tmp/gmaths-temp/* "$APP_DIR/"
+    rm -rf /tmp/gmaths-temp
+    cd "$APP_DIR"
 else
     print_status "Cloning fresh repository"
-    git clone $REPO_URL $APP_DIR
-    cd $APP_DIR
+    git clone "$REPO_URL" /tmp/gmaths-temp
+    cp -r /tmp/gmaths-temp/* "$APP_DIR/"
+    rm -rf /tmp/gmaths-temp
+    cd "$APP_DIR"
 fi
 
 print_success "Repository ready"
 
 print_status "Setting up Backend"
-cd $BACKEND_DIR
-
-# Create environment file from template
-if [ ! -f ".env" ]; then
-    print_status "Creating backend environment file"
-    cp ../deploy/production.env .env
-    print_error "IMPORTANT: Edit $BACKEND_DIR/.env with your actual configuration!"
-    print_error "Update database credentials, JWT secret, and domain settings"
-    read -p "Press Enter after updating the .env file..."
-fi
+cd "$BACKEND_DIR"
 
 # Install backend dependencies
 print_status "Installing backend dependencies"
@@ -78,16 +92,7 @@ pnpm build
 print_success "Backend setup complete"
 
 print_status "Setting up Frontend"
-cd $FRONTEND_DIR
-
-# Create frontend environment file
-if [ ! -f ".env.production" ]; then
-    print_status "Creating frontend environment file"
-    echo "VITE_API_URL=https://$DOMAIN/api" > .env.production
-    echo "VITE_WS_URL=wss://$DOMAIN" >> .env.production
-    echo "VITE_APP_NAME=GMATHS Education Platform" >> .env.production
-    echo "VITE_APP_VERSION=1.0.0" >> .env.production
-fi
+cd "$FRONTEND_DIR"
 
 # Install frontend dependencies
 print_status "Installing frontend dependencies"
@@ -103,8 +108,7 @@ print_status "Configuring Nginx"
 # Copy Nginx configuration
 sudo cp ../deploy/nginx-gmaths.conf /etc/nginx/sites-available/gmaths
 
-# Update domain in Nginx config
-sudo sed -i "s/yourdomain.com/$DOMAIN/g" /etc/nginx/sites-available/gmaths
+# Update domain in Nginx config (no replacement needed as domain is already correct)
 
 # Enable site
 sudo ln -sf /etc/nginx/sites-available/gmaths /etc/nginx/sites-enabled/
@@ -125,7 +129,7 @@ else
 fi
 
 print_status "Setting up PM2 for Backend"
-cd $BACKEND_DIR
+cd "$BACKEND_DIR"
 
 # Create PM2 ecosystem file
 cat > ecosystem.config.js << EOF
@@ -150,7 +154,7 @@ EOF
 
 # Create log directory
 sudo mkdir -p /var/log/pm2
-sudo chown -R $USER:$USER /var/log/pm2
+sudo chown -R "$USER:$USER" /var/log/pm2
 
 # Start application with PM2
 print_status "Starting backend with PM2"
@@ -160,7 +164,7 @@ pm2 start ecosystem.config.js
 pm2 save
 
 # Setup PM2 startup script
-sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME
+sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u "$USER" --hp "$HOME"
 
 print_success "Backend started with PM2"
 
@@ -170,13 +174,13 @@ sudo chown -R www-data:www-data /var/www/gmaths/uploads
 sudo chmod 755 /var/www/gmaths/uploads
 
 print_status "Setting Proper Permissions"
-# Set ownership for web files
-sudo chown -R $USER:www-data $APP_DIR
-sudo chmod -R 755 $APP_DIR
+# Set ownership for web files (keep user ownership for app files)
+sudo chown -R "$USER:www-data" "$APP_DIR"
+sudo chmod -R 755 "$APP_DIR"
 
-# Set proper permissions for frontend dist
-sudo chown -R www-data:www-data $FRONTEND_DIR/dist
-sudo chmod -R 755 $FRONTEND_DIR/dist
+# Set proper permissions for frontend dist (nginx needs to read these)
+sudo chown -R www-data:www-data "$FRONTEND_DIR/dist"
+sudo chmod -R 755 "$FRONTEND_DIR/dist"
 
 print_success "Deployment Complete!"
 
