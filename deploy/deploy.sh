@@ -85,6 +85,10 @@ pnpm db:generate
 print_status "Running database migrations"
 pnpm db:push
 
+# Seed the database
+print_status "Seeding database"
+pnpm db:seed
+
 # Build backend
 print_status "Building backend"
 pnpm build
