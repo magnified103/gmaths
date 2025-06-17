@@ -10,8 +10,7 @@ import type {
   UserListResponse,
   BulkUploadResult,
 } from '../types/admin';
-
-const API_BASE_URL = 'http://localhost:3000';
+import { API_BASE_URL } from './config';
 
 /**
  * Builds query string from user filters object and pagination.
@@ -54,7 +53,7 @@ export async function fetchUsers(
   limit: number = 20
 ): Promise<UserListResponse> {
   const queryString = buildQueryString(filters, page, limit);
-  const url = `${API_BASE_URL}/api/admin/users?${queryString}`;
+  const url = `${API_BASE_URL}/admin/users?${queryString}`;
   
   const response = await fetch(url, {
     method: 'GET',
@@ -85,7 +84,7 @@ export async function fetchUsers(
  * @returns Promise resolving to user data.
  */
 export async function fetchUser(userId: string): Promise<UserListItem> {
-  const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+  const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -106,7 +105,7 @@ export async function fetchUser(userId: string): Promise<UserListItem> {
  * @returns Promise resolving to created user data.
  */
 export async function createUser(userData: UserCreateForm): Promise<UserListItem> {
-  const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+  const response = await fetch(`${API_BASE_URL}/admin/users`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -130,7 +129,7 @@ export async function createUser(userData: UserCreateForm): Promise<UserListItem
  * @returns Promise resolving to updated user data.
  */
 export async function updateUser(userId: string, userData: UserUpdateForm): Promise<UserListItem> {
-  const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+  const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -153,7 +152,7 @@ export async function updateUser(userId: string, userData: UserUpdateForm): Prom
  * @returns Promise resolving when deletion is complete.
  */
 export async function deleteUser(userId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+  const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
@@ -177,7 +176,7 @@ export async function uploadUsersCSV(file: File, overwrite: boolean = false): Pr
   formData.append('file', file);
   formData.append('overwrite', String(overwrite));
   
-  const response = await fetch(`${API_BASE_URL}/api/admin/users/import`, {
+  const response = await fetch(`${API_BASE_URL}/admin/users/import`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
@@ -198,7 +197,7 @@ export async function uploadUsersCSV(file: File, overwrite: boolean = false): Pr
  * @returns Promise resolving to blob for download.
  */
 export async function downloadCSVTemplate(): Promise<Blob> {
-  const response = await fetch(`${API_BASE_URL}/api/admin/users/template`, {
+  const response = await fetch(`${API_BASE_URL}/admin/users/template`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
@@ -221,7 +220,7 @@ export async function getAdminDashboardStats(): Promise<{
   totalExams: number;
   totalSubmissions: number;
 }> {
-  const response = await fetch(`${API_BASE_URL}/api/admin/dashboard-stats`, {
+  const response = await fetch(`${API_BASE_URL}/admin/dashboard-stats`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',

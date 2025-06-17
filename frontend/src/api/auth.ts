@@ -1,7 +1,5 @@
 import type { LoginForm, RegistrationForm, PasswordResetForm, AuthResponse, User, UserRole, DisplayRole } from '../types/auth';
-
-// API base configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { API_BASE_URL } from './config';
 
 /**
  * Convert backend role to display role for UI consistency.

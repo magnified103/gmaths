@@ -27,7 +27,7 @@ async function registerPlugins(): Promise<void> {
   // Simplified CORS configuration for development
   const corsOptions = process.env.NODE_ENV === 'production' 
     ? {
-        origin: ['https://gmaths.edu.vn'],
+        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['https://gmaths.edu.vn'],
         credentials: true
       }
     : {
@@ -56,7 +56,7 @@ function setupWebSocket(): void {
   const io = new SocketIOServer(fastify.server, {
     cors: {
       origin: process.env.NODE_ENV === 'production' 
-        ? ['https://gmaths.edu.vn']
+        ? (process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['https://gmaths.edu.vn'])
         : ['http://localhost:5173', 'http://localhost:3000'],
       credentials: true
     },

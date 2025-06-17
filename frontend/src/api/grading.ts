@@ -3,7 +3,7 @@
  * Handles scoring, results, leaderboards, and analytics
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { API_BASE_URL } from './config';
 
 // Export interfaces directly here to avoid unused imports
 export interface QuestionResult {
@@ -219,14 +219,14 @@ async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
  * Get detailed exam results for a specific student (Admin only)
  */
 export const getExamResults = async (examId: string, userId: string): Promise<ExamResult> => {
-  return apiFetch<ExamResult>(`/api/grading/exams/${examId}/results/${userId}`);
+  return apiFetch<ExamResult>(`/grading/exams/${examId}/results/${userId}`);
 };
 
 /**
  * Get detailed exam results for current student
  */
 export const getMyExamResults = async (examId: string): Promise<ExamResult> => {
-  return apiFetch<ExamResult>(`/api/grading/exams/${examId}/results/me`);
+  return apiFetch<ExamResult>(`/grading/exams/${examId}/results/me`);
 };
 
 /**
@@ -237,7 +237,7 @@ export const getExamLeaderboard = async (
   limit: number = 50
 ): Promise<{ entries: LeaderboardEntry[]; examId: string }> => {
   return apiFetch<{ entries: LeaderboardEntry[]; examId: string }>(
-    `/api/grading/exams/${examId}/leaderboard?limit=${limit}`
+    `/grading/exams/${examId}/leaderboard?limit=${limit}`
   );
 };
 
@@ -245,94 +245,91 @@ export const getExamLeaderboard = async (
  * Get performance analytics for an exam (Admin only)
  */
 export const getExamAnalytics = async (examId: string): Promise<PerformanceAnalytics> => {
-  return apiFetch<PerformanceAnalytics>(`/api/grading/exams/${examId}/analytics`);
+  return apiFetch<PerformanceAnalytics>(`/grading/exams/${examId}/analytics`);
 };
 
 /**
  * Get all exam results for a specific student (Admin or self only)
  */
 export const getStudentResults = async (userId: string): Promise<StudentExamHistory[]> => {
-  return apiFetch<StudentExamHistory[]>(`/api/grading/students/${userId}/results`);
+  return apiFetch<StudentExamHistory[]>(`/grading/students/${userId}/results`);
 };
 
 /**
  * Get all exam results for current student
  */
 export const getMyResults = async (): Promise<StudentExamHistory[]> => {
-  return apiFetch<StudentExamHistory[]>('/api/grading/students/me/results');
+  return apiFetch<StudentExamHistory[]>(`/grading/students/me/results`);
 };
 
 /**
  * Get grading dashboard statistics (Admin only)
  */
 export const getGradingDashboardStats = async (): Promise<GradingDashboardStats> => {
-  return apiFetch<GradingDashboardStats>('/api/grading/dashboard/stats');
+  return apiFetch<GradingDashboardStats>('/grading/dashboard/stats');
 };
 
 /**
  * Regrade an exam with updated scoring algorithms (Admin only)
  */
 export const regradeExam = async (examId: string): Promise<RegradeResult> => {
-  return apiFetch<RegradeResult>(`/api/grading/exams/${examId}/regrade`, {
+  return apiFetch<RegradeResult>(`/grading/exams/${examId}/regrade`, {
     method: 'POST',
   });
 };
 
 /**
- * Export exam results as CSV (Admin only)
+ * Export exam results to CSV/PDF (Admin only)
  */
 export const exportExamResults = async (examId: string): Promise<Blob> => {
   const token = localStorage.getItem('auth-token');
-  
-  const response = await fetch(`${API_BASE_URL}/api/grading/exams/${examId}/export`, {
-    method: 'GET',
+
+  const response = await fetch(`${API_BASE_URL}/grading/exams/${examId}/export`, {
     headers: {
       ...(token && { Authorization: `Bearer ${token}` }),
     },
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to export results: ${response.statusText}`);
+    throw new Error('Failed to export results');
   }
-
   return response.blob();
 };
 
 /**
- * Get all attempts for an exam by current student
+ * Get all attempts for current student for a specific exam
  */
 export const getExamAttempts = async (examId: string): Promise<ExamAttempt[]> => {
-  return apiFetch<ExamAttempt[]>(`/api/grading/exams/${examId}/attempts`);
+  return apiFetch<ExamAttempt[]>(`/grading/exams/${examId}/attempts/me`);
 };
 
 /**
- * Get specific attempt results for current student
+ * Get exam results for a specific attempt for current student
  */
 export const getExamAttemptResults = async (examId: string, attemptNumber: number): Promise<ExamResult> => {
-  return apiFetch<ExamResult>(`/api/grading/exams/${examId}/attempts/${attemptNumber}`);
+  return apiFetch<ExamResult>(`/grading/exams/${examId}/attempts/${attemptNumber}/results/me`);
 };
 
 /**
- * Get specific attempt results for a student (Admin only)
+ * Get exam results for a specific attempt for a specific student (Admin)
  */
 export const getStudentExamAttemptResults = async (
   examId: string, 
   userId: string, 
   attemptNumber: number
 ): Promise<ExamResult> => {
-  return apiFetch<ExamResult>(`/api/grading/exams/${examId}/attempts/${userId}/${attemptNumber}`);
+  return apiFetch<ExamResult>(`/grading/exams/${examId}/attempts/${attemptNumber}/results/${userId}`);
 };
 
 /**
- * Get grouped exam history for current student
+ * Get all exam results for current student, grouped by exam
  */
 export const getMyGroupedResults = async (): Promise<GroupedExamHistory[]> => {
-  return apiFetch<GroupedExamHistory[]>('/api/grading/students/me/results/grouped');
+  return apiFetch<GroupedExamHistory[]>('/grading/students/me/results/grouped');
 };
 
 /**
- * Get exam summaries for admin dashboard
+ * Get summaries for all exams for the admin dashboard
  */
 export const getExamSummaries = async (): Promise<Array<{
   id: string;
@@ -346,11 +343,11 @@ export const getExamSummaries = async (): Promise<Array<{
   createdAt: string;
   status: 'active' | 'archived' | 'draft';
 }>> => {
-  return apiFetch<any[]>('/api/admin/exam-summaries');
+  return apiFetch<any>('/grading/summaries/exams');
 };
 
 /**
- * Get student summaries for admin dashboard
+ * Get summaries for all students for the admin dashboard
  */
 export const getStudentSummaries = async (): Promise<Array<{
   id: string;
@@ -362,11 +359,11 @@ export const getStudentSummaries = async (): Promise<Array<{
   lastActivity: string;
   overallPerformance: 'excellent' | 'good' | 'average' | 'needs_improvement';
 }>> => {
-  return apiFetch<any[]>('/api/admin/student-summaries');
+  return apiFetch<any>('/grading/summaries/students');
 };
 
 /**
- * Get all exam results for a specific exam (Admin only)
+ * Get all results for a specific exam
  */
 export const getExamResultsForExam = async (examId: string): Promise<Array<{
   id: string;
@@ -386,11 +383,11 @@ export const getExamResultsForExam = async (examId: string): Promise<Array<{
   isAutoSubmit: boolean;
   rank?: number;
 }>> => {
-  return apiFetch<any[]>(`/api/grading/exams/${examId}/all-results`);
+  return apiFetch<any>(`/grading/results/exam/${examId}`);
 };
 
 /**
- * Get exam info and statistics for admin (Admin only)
+ * Get detailed information and statistics for a specific exam
  */
 export const getExamInfoAndStats = async (examId: string): Promise<{
   examInfo: {
@@ -416,11 +413,11 @@ export const getExamInfoAndStats = async (examId: string): Promise<{
     scoreDistribution: Record<string, number>;
   };
 }> => {
-  return apiFetch<any>(`/api/grading/exams/${examId}/info-stats`);
+  return apiFetch<any>(`/grading/details/exam/${examId}`);
 };
 
 /**
- * Get student info and statistics for admin (Admin only)
+ * Get detailed information and statistics for a specific student
  */
 export const getStudentInfoAndStats = async (studentId: string): Promise<{
   studentInfo: {
@@ -450,5 +447,5 @@ export const getStudentInfoAndStats = async (studentId: string): Promise<{
     performanceTrend: 'improving' | 'declining' | 'stable';
   };
 }> => {
-  return apiFetch<any>(`/api/grading/students/${studentId}/info-stats`);
-}; 
+  return apiFetch<any>(`/grading/details/student/${studentId}`);
+};

@@ -12,8 +12,7 @@ import type {
   QuestionValidation,
   QuestionCategory,
 } from '../types/questions';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { API_BASE_URL } from './config';
 
 /**
  * Prepare question data for backend API (types are now consistent)
@@ -129,7 +128,7 @@ export async function fetchQuestions(
   limit: number = 20
 ): Promise<QuestionListResponse> {
   const queryString = buildQueryString(filters, page, limit);
-  const url = `${API_BASE_URL}/api/questions?${queryString}`;
+  const url = `${API_BASE_URL}/questions?${queryString}`;
   
   const response = await fetch(url, {
     method: 'GET',
@@ -160,7 +159,7 @@ export async function fetchQuestions(
  * @returns Promise resolving to question data.
  */
 export async function fetchQuestion(questionId: string): Promise<Question> {
-  const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
+  const response = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -183,7 +182,7 @@ export async function fetchQuestion(questionId: string): Promise<Question> {
  */
 export async function createQuestion(questionData: QuestionCreateForm): Promise<Question> {
   const backendData = prepareQuestionData(questionData);
-  const response = await fetch(`${API_BASE_URL}/api/questions`, {
+  const response = await fetch(`${API_BASE_URL}/questions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -212,7 +211,7 @@ export async function updateQuestion(questionId: string, questionData: QuestionU
   const { id, ...formData } = questionData;
   const backendData = prepareQuestionData(formData as QuestionCreateForm);
   
-  const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
+  const response = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -236,7 +235,7 @@ export async function updateQuestion(questionId: string, questionData: QuestionU
  * @returns Promise resolving when deletion is complete.
  */
 export async function deleteQuestion(questionId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
+  const response = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
@@ -255,7 +254,7 @@ export async function deleteQuestion(questionId: string): Promise<void> {
  * @returns Promise resolving to validation result.
  */
 export async function validateQuestion(questionData: Partial<QuestionCreateForm>): Promise<QuestionValidation> {
-  const response = await fetch(`${API_BASE_URL}/api/questions/validate`, {
+  const response = await fetch(`${API_BASE_URL}/questions/validate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -277,7 +276,7 @@ export async function validateQuestion(questionData: Partial<QuestionCreateForm>
  * @returns Promise resolving to list of categories.
  */
 export async function fetchCategories(): Promise<QuestionCategory[]> {
-  const response = await fetch(`${API_BASE_URL}/api/questions/categories`, {
+  const response = await fetch(`${API_BASE_URL}/categories`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -299,7 +298,7 @@ export async function fetchCategories(): Promise<QuestionCategory[]> {
  * @returns Promise resolving to created category.
  */
 export async function createCategory(categoryData: Omit<QuestionCategory, 'id' | 'questionCount' | 'createdAt' | 'updatedAt'>): Promise<QuestionCategory> {
-  const response = await fetch(`${API_BASE_URL}/api/questions/categories`, {
+  const response = await fetch(`${API_BASE_URL}/categories`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -322,7 +321,7 @@ export async function createCategory(categoryData: Omit<QuestionCategory, 'id' |
  * @returns Promise resolving to list of tags.
  */
 export async function fetchTags(): Promise<string[]> {
-  const response = await fetch(`${API_BASE_URL}/api/questions/tags`, {
+  const response = await fetch(`${API_BASE_URL}/tags`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
