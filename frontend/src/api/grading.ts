@@ -343,7 +343,7 @@ export const getExamSummaries = async (): Promise<Array<{
   createdAt: string;
   status: 'active' | 'archived' | 'draft';
 }>> => {
-  return apiFetch<any>('/grading/summaries/exams');
+  return apiFetch<any>('/admin/exam-summaries');
 };
 
 /**
@@ -359,7 +359,7 @@ export const getStudentSummaries = async (): Promise<Array<{
   lastActivity: string;
   overallPerformance: 'excellent' | 'good' | 'average' | 'needs_improvement';
 }>> => {
-  return apiFetch<any>('/grading/summaries/students');
+  return apiFetch<any>('/admin/student-summaries');
 };
 
 /**
@@ -383,7 +383,7 @@ export const getExamResultsForExam = async (examId: string): Promise<Array<{
   isAutoSubmit: boolean;
   rank?: number;
 }>> => {
-  return apiFetch<any>(`/grading/results/exam/${examId}`);
+  return apiFetch<any>(`/grading/exams/${examId}/all-results`);
 };
 
 /**
@@ -413,7 +413,7 @@ export const getExamInfoAndStats = async (examId: string): Promise<{
     scoreDistribution: Record<string, number>;
   };
 }> => {
-  return apiFetch<any>(`/grading/details/exam/${examId}`);
+  return apiFetch<any>(`/grading/exams/${examId}/info-stats`);
 };
 
 /**
@@ -447,5 +447,5 @@ export const getStudentInfoAndStats = async (studentId: string): Promise<{
     performanceTrend: 'improving' | 'declining' | 'stable';
   };
 }> => {
-  return apiFetch<any>(`/grading/details/student/${studentId}`);
+  return apiFetch<any>(`/grading/students/${studentId}/info-stats`);
 };

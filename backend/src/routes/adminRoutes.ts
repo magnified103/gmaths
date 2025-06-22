@@ -18,7 +18,7 @@ const adminUserCreateSchema = z.object({
   username: z.string().min(3).max(50),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['student', 'admin']),
+  role: z.enum(['STUDENT', 'ADMIN']),
 });
 
 /**
@@ -27,7 +27,7 @@ const adminUserCreateSchema = z.object({
 const adminUserUpdateSchema = z.object({
   username: z.string().min(3).max(50),
   email: z.string().email(),
-  role: z.enum(['student', 'admin']),
+  role: z.enum(['STUDENT', 'ADMIN']),
   emailVerified: z.boolean(),
 });
 
@@ -47,8 +47,8 @@ const userFiltersSchema = z.object({
 /**
  * Maps string role to UserRole enum.
  */
-function mapStringToUserRole(roleString: string): UserRole {
-  return roleString === 'admin' ? UserRole.ADMIN : UserRole.STUDENT;
+function mapStringToUserRole(roleString: 'STUDENT' | 'ADMIN'): UserRole {
+  return UserRole[roleString];
 }
 
 /**

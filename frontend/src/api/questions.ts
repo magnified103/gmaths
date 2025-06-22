@@ -273,10 +273,10 @@ export async function validateQuestion(questionData: Partial<QuestionCreateForm>
 
 /**
  * Fetches available question categories.
- * @returns Promise resolving to list of categories.
+ * @returns Promise resolving to a list of categories.
  */
 export async function fetchCategories(): Promise<QuestionCategory[]> {
-  const response = await fetch(`${API_BASE_URL}/categories`, {
+  const response = await fetch(`${API_BASE_URL}/questions/categories`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -295,10 +295,10 @@ export async function fetchCategories(): Promise<QuestionCategory[]> {
 /**
  * Creates a new question category.
  * @param categoryData - Category data to create.
- * @returns Promise resolving to created category.
+ * @returns Promise resolving to the created category.
  */
 export async function createCategory(categoryData: Omit<QuestionCategory, 'id' | 'questionCount' | 'createdAt' | 'updatedAt'>): Promise<QuestionCategory> {
-  const response = await fetch(`${API_BASE_URL}/categories`, {
+  const response = await fetch(`${API_BASE_URL}/questions/categories`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -318,10 +318,10 @@ export async function createCategory(categoryData: Omit<QuestionCategory, 'id' |
 
 /**
  * Gets available tags for questions.
- * @returns Promise resolving to list of tags.
+ * @returns Promise resolving to a list of tags.
  */
 export async function fetchTags(): Promise<string[]> {
-  const response = await fetch(`${API_BASE_URL}/tags`, {
+  const response = await fetch(`${API_BASE_URL}/questions/tags`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',

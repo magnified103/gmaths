@@ -6,13 +6,14 @@
 set -e
 
 # Configuration
+SOURCE_DIR="/home/ubuntu/gmaths-education-website" # Your local workspace
 APP_DIR="/var/www/gmaths"
 BACKEND_DIR="$APP_DIR/backend"
 FRONTEND_DIR="$APP_DIR/frontend"
-REPO_URL="https://github.com/pieberrykinnie/gmaths-education-website.git"  # Update this
-DOMAIN="ec2-3-27-173-225.ap-southeast-2.compute.amazonaws.com"  # Update this
+DOMAIN="ec2-16-176-6-117.ap-southeast-2.compute.amazonaws.com"  # Update this
 
 echo "=== GMATHS Education Website Deployment ==="
+echo "Deploying from: $SOURCE_DIR"
 echo "Deploying to: $APP_DIR"
 
 # Function to print colored output
@@ -47,28 +48,19 @@ else
     print_success "Application directory ownership verified"
 fi
 
-print_status "Cloning Repository"
-if [ -d "$APP_DIR/.git" ]; then
-    print_status "Updating existing repository"
-    cd "$APP_DIR"
-    git pull origin main
-elif [ -d "$APP_DIR" ] && [ "$(ls -A $APP_DIR)" ]; then
-    print_status "Removing existing directory contents"
-    rm -rf "$APP_DIR"/*
-    print_status "Cloning fresh repository"
-    git clone "$REPO_URL" /tmp/gmaths-temp
-    cp -r /tmp/gmaths-temp/* "$APP_DIR/"
-    rm -rf /tmp/gmaths-temp
-    cd "$APP_DIR"
-else
-    print_status "Cloning fresh repository"
-    git clone "$REPO_URL" /tmp/gmaths-temp
-    cp -r /tmp/gmaths-temp/* "$APP_DIR/"
-    rm -rf /tmp/gmaths-temp
-    cd "$APP_DIR"
-fi
+print_status "Syncing application files"
+# Use rsync to copy files from source to destination
+# Exclude .git, node_modules, and other unnecessary files
+rsync -av --delete \
+  --exclude ".git" \
+  --exclude "node_modules" \
+  --exclude "backend/dist" \
+  --exclude "frontend/dist" \
+  --exclude ".env" \
+  --exclude "pnpm-lock.yaml" \
+  "$SOURCE_DIR/" "$APP_DIR/"
 
-print_success "Repository ready"
+print_success "Application files synced"
 
 print_status "Setting up Backend"
 cd "$BACKEND_DIR"
@@ -109,8 +101,8 @@ pnpm build
 print_success "Frontend build complete"
 
 print_status "Configuring Nginx"
-# Copy Nginx configuration
-sudo cp ../deploy/nginx-gmaths.conf /etc/nginx/sites-available/gmaths
+# Copy Nginx configuration from the source directory's deploy folder
+sudo cp "$SOURCE_DIR/deploy/nginx-gmaths.conf" /etc/nginx/sites-available/gmaths
 
 # Update domain in Nginx config (no replacement needed as domain is already correct)
 
@@ -161,9 +153,9 @@ EOF
 sudo mkdir -p /var/log/pm2
 sudo chown -R "$USER:$USER" /var/log/pm2
 
-# Start application with PM2
+# Start or restart application with PM2
 print_status "Starting backend with PM2"
-pm2 start ecosystem.config.js
+pm2 restart ecosystem.config.js || pm2 start ecosystem.config.js
 
 # Save PM2 configuration
 pm2 save
@@ -191,7 +183,7 @@ print_success "Deployment Complete!"
 
 echo ""
 echo "=== Deployment Summary ==="
-echo "✓ Repository cloned/updated"
+echo "✓ Application files synced from $SOURCE_DIR"
 echo "✓ Backend built and started with PM2"
 echo "✓ Frontend built and served by Nginx"
 echo "✓ Database configured"
@@ -200,7 +192,7 @@ echo ""
 echo "🌐 Your application should be available at: http://$DOMAIN"
 echo ""
 echo "Next steps:"
-echo "1. Point your domain to this EC2 instance's IP address"
+echo "1. Remember to commit your changes to your Git repository."
 echo "2. Set up SSL certificates (recommended: Let's Encrypt)"
 echo "3. Configure monitoring and backups"
 echo ""
