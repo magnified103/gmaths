@@ -5,6 +5,7 @@ import BrandLogo from '../ui/BrandLogo';
 /**
  * Footer component with Vietnamese content and GMATHS branding
  * Provides footer links and company information
+ * Updated to use implemented routes and placeholder pages
  */
 const Footer: React.FC = () => {
   return (

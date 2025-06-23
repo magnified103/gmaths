@@ -22,6 +22,19 @@ import StudentResultsManagementPage from './pages/StudentResultsManagementPage';
 import StudentExamAttemptResultPage from './pages/StudentExamAttemptResultPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AuthGuard from './components/auth/AuthGuard';
+// Placeholder pages and redirects
+import DashboardRedirect from './pages/DashboardRedirect';
+import ExamsRedirect from './pages/ExamsRedirect';
+import ResultsRedirect from './pages/ResultsRedirect';
+import PracticePage from './pages/PracticePage';
+import AboutPage from './pages/AboutPage';
+import HelpPage from './pages/HelpPage';
+import ContactPage from './pages/ContactPage';
+import PrivacyPage from './pages/PrivacyPage';
+import FaqPage from './pages/FaqPage';
+import GuidesPage from './pages/GuidesPage';
+import SupportPage from './pages/SupportPage';
+import TermsPage from './pages/TermsPage';
 import './index.css';
 
 // Create a client instance for TanStack Query
@@ -70,6 +83,31 @@ function App() {
                 </AuthGuard>
               } 
             />
+
+            {/* Smart Redirects */}
+            <Route 
+              path="/dashboard" 
+              element={<DashboardRedirect />} 
+            />
+            <Route 
+              path="/exams" 
+              element={<ExamsRedirect />} 
+            />
+            <Route 
+              path="/results" 
+              element={<ResultsRedirect />} 
+            />
+
+            {/* Public/Information Pages */}
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/faq" element={<FaqPage />} />
+            <Route path="/guides" element={<GuidesPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/practice" element={<PracticePage />} />
+            <Route path="/terms" element={<TermsPage />} />
             
             {/* Student Routes - Organized with Dashboard */}
             <Route 
