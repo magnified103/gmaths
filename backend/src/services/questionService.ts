@@ -36,6 +36,7 @@ export class QuestionService {
       'multiple-select': 'MULTIPLE_SELECT',
       'true-false': 'TRUE_FALSE',
       'fill-blank': 'FILL_BLANK',
+      'short-answer': 'SHORT_ANSWER',
       'essay': 'ESSAY'
     };
     return typeMap[type];
@@ -52,6 +53,7 @@ export class QuestionService {
       'MULTIPLE_SELECT': 'multiple-select',
       'TRUE_FALSE': 'true-false',
       'FILL_BLANK': 'fill-blank',
+      'SHORT_ANSWER': 'short-answer',
       'ESSAY': 'essay'
     };
     return typeMap[type] || type.toLowerCase() as QuestionTypeEnum;
@@ -653,6 +655,34 @@ export class QuestionService {
             code: 'MIN_LENGTH'
           });
         }
+        break;
+
+      case 'short-answer':
+        const shortAnswerData = typeData as any; // ShortAnswerData from types
+        if (!shortAnswerData.acceptableAnswers || !Array.isArray(shortAnswerData.acceptableAnswers)) {
+          errors.push({
+            field: 'typeData.acceptableAnswers',
+            message: 'Acceptable answers array is required',
+            code: 'REQUIRED'
+          });
+        } else if (shortAnswerData.acceptableAnswers.length === 0) {
+          errors.push({
+            field: 'typeData.acceptableAnswers',
+            message: 'At least one acceptable answer is required',
+            code: 'MIN_LENGTH'
+          });
+        }
+
+        // Validate that all answers are non-empty strings
+        shortAnswerData.acceptableAnswers?.forEach((answer: string, index: number) => {
+          if (!answer || typeof answer !== 'string' || answer.trim().length === 0) {
+            errors.push({
+              field: `typeData.acceptableAnswers[${index}]`,
+              message: `Answer ${index + 1} cannot be empty`,
+              code: 'EMPTY_ANSWER'
+            });
+          }
+        });
         break;
 
       case 'essay':

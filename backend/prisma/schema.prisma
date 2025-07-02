@@ -257,6 +257,7 @@ enum QuestionType {
   MULTIPLE_SELECT
   TRUE_FALSE
   FILL_BLANK
+  SHORT_ANSWER
   ESSAY
 }
 

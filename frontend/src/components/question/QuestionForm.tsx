@@ -27,7 +27,7 @@ interface QuestionFormProps {
 
 // Validation schema for question creation - supports all question types
 const questionSchema = z.object({
-  type: z.enum(['multiple-choice', 'multiple-select', 'true-false', 'fill-blank', 'essay'] as const, {
+  type: z.enum(['multiple-choice', 'multiple-select', 'true-false', 'fill-blank', 'short-answer', 'essay'] as const, {
     errorMap: () => ({ message: 'Vui lòng chọn loại câu hỏi' }),
   }),
   content: z
@@ -91,6 +91,10 @@ const questionSchema = z.object({
     )
     .optional(),
   caseSensitive: z.boolean().optional(),
+  // Short answer specific fields
+  acceptableAnswers: z
+    .array(z.string().min(1, 'Đáp án không được để trống'))
+    .optional(),
   // Essay specific fields
   maxWords: z.number().min(1).optional(),
   minWords: z.number().min(1).optional(),
@@ -109,6 +113,8 @@ const questionSchema = z.object({
       return data.correctAnswer !== undefined;
     case 'fill-blank':
       return data.blanks && data.blanks.length > 0;
+    case 'short-answer':
+      return data.acceptableAnswers && data.acceptableAnswers.length > 0;
     case 'essay':
       return true; // Essay questions don't require specific fields
     default:
@@ -119,6 +125,134 @@ const questionSchema = z.object({
 });
 
 type QuestionFormData = z.infer<typeof questionSchema>;
+
+/**
+ * Short Answer Fields Component
+ */
+interface ShortAnswerFieldsProps {
+  register: any;
+  setValue: any;
+  watch: any;
+  errors: any;
+}
+
+const ShortAnswerFields: React.FC<ShortAnswerFieldsProps> = ({
+  register,
+  setValue,
+  watch,
+  errors
+}) => {
+  const [answers, setAnswers] = useState<string[]>(['']);
+  
+  const addAnswer = () => {
+    const newAnswers = [...answers, ''];
+    setAnswers(newAnswers);
+    setValue('acceptableAnswers', newAnswers);
+  };
+
+  const removeAnswer = (index: number) => {
+    if (answers.length > 1) {
+      const newAnswers = answers.filter((_, i) => i !== index);
+      setAnswers(newAnswers);
+      setValue('acceptableAnswers', newAnswers);
+    }
+  };
+
+  const updateAnswer = (index: number, value: string) => {
+    const newAnswers = [...answers];
+    newAnswers[index] = value;
+    setAnswers(newAnswers);
+    setValue('acceptableAnswers', newAnswers);
+  };
+
+  // Watch for external changes
+  const watchedAnswers = watch('acceptableAnswers');
+  useEffect(() => {
+    if (watchedAnswers && Array.isArray(watchedAnswers)) {
+      setAnswers(watchedAnswers);
+    }
+  }, [watchedAnswers]);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Đáp án chấp nhận được *
+            </label>
+            <p className="text-xs text-gray-500 mt-1">
+              Nhập các đáp án được chấp nhận (văn bản thuần, không hỗ trợ LaTeX)
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={<PlusIcon className="h-4 w-4" />}
+            onClick={addAnswer}
+            disabled={answers.length >= 10}
+          >
+            Thêm đáp án
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          {answers.map((answer, index) => (
+            <div key={index} className="flex items-center space-x-3 p-3 bg-white border border-gray-200 rounded-lg">
+              <div className="flex items-center min-w-[30px]">
+                <span className="text-sm font-medium text-gray-700">
+                  {index + 1}.
+                </span>
+              </div>
+              
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={answer}
+                  onChange={(e) => updateAnswer(index, e.target.value)}
+                  placeholder="Nhập đáp án được chấp nhận..."
+                  className="block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                />
+              </div>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={<TrashIcon className="h-4 w-4" />}
+                onClick={() => removeAnswer(index)}
+                disabled={answers.length <= 1}
+                className="text-red-600 hover:text-red-700"
+              >
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        {errors.acceptableAnswers && (
+          <p className="mt-2 text-sm text-red-600">{errors.acceptableAnswers.message}</p>
+        )}
+      </div>
+
+      <div>
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            {...register('caseSensitive')}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+          />
+          <span className="ml-2 text-sm text-gray-700">
+            Phân biệt chữ hoa/thường
+          </span>
+        </label>
+        <p className="mt-1 text-xs text-gray-500">
+          Nếu được chọn, "Apple" và "apple" sẽ được coi là khác nhau
+        </p>
+      </div>
+    </div>
+  );
+};
 
 /**
  * Question form component cho tạo và chỉnh sửa câu hỏi toán học
@@ -205,6 +339,13 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
             caseSensitive: blank.caseSensitive || false,
             placeholder: blank.placeholder || '',
           })) || [],
+          caseSensitive: typeData.caseSensitive || false,
+        };
+
+      case 'short-answer':
+        return {
+          ...baseValues,
+          acceptableAnswers: typeData.acceptableAnswers || [''],
           caseSensitive: typeData.caseSensitive || false,
         };
 
@@ -342,6 +483,14 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
               placeholder: blank.placeholder || '',
             })) || [],
             caseSensitive: data.caseSensitive || false,
+          };
+          break;
+
+        case 'short-answer':
+          questionData = {
+            ...baseQuestionData,
+            acceptableAnswers: data.acceptableAnswers?.filter(answer => answer.trim().length > 0) || [],
+            caseSensitive: data.caseSensitive ?? false,
           };
           break;
 
@@ -542,6 +691,29 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
             </p>
           </div>
 
+          {/* Question Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Loại câu hỏi *
+            </label>
+            <select
+              {...register('type')}
+              className={`block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.type ? 'border-red-300' : ''
+              }`}
+            >
+              <option value="multiple-choice">Trắc nghiệm (1 đáp án)</option>
+              <option value="multiple-select">Trắc nghiệm (nhiều đáp án)</option>
+              <option value="true-false">Đúng/Sai</option>
+              <option value="fill-blank">Điền khuyết</option>
+              <option value="short-answer">Câu trả lời ngắn</option>
+              <option value="essay">Tự luận</option>
+            </select>
+            {errors.type && (
+              <p className="mt-1 text-sm text-red-600">{errors.type.message}</p>
+            )}
+          </div>
+
           {/* Question Metadata */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Category */}
@@ -611,82 +783,163 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
             </div>
           </div>
 
-          {/* Answer Options with LaTeX Support */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Lựa chọn đáp án *
-                </label>
-                <p className="text-xs text-gray-500 mt-1">
-                  Hỗ trợ LaTeX cho công thức toán học (VD: $x^2 + 1$, $\frac{1}{2}$)
-                </p>
+          {/* Type-specific fields */}
+          {watchedType === 'multiple-choice' || watchedType === 'multiple-select' ? (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Lựa chọn đáp án *
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Hỗ trợ LaTeX cho công thức toán học (VD: $x^2 + 1$, $\frac{1}{2}$)
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={<PlusIcon className="h-4 w-4" />}
+                  onClick={handleAddOption}
+                  disabled={fields.length >= 6}
+                >
+                  Thêm lựa chọn
+                </Button>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={<PlusIcon className="h-4 w-4" />}
-                onClick={handleAddOption}
-                disabled={fields.length >= 6}
-              >
-                Thêm lựa chọn
-              </Button>
-            </div>
 
-            <div className="space-y-3">
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex items-start space-x-3 p-3 bg-white border border-gray-200 rounded-lg">
-                  {/* Correct Answer Radio */}
-                  <div className="flex items-center pt-2">
+              <div className="space-y-3">
+                {fields.map((field, index) => (
+                  <div key={field.id} className="flex items-start space-x-3 p-3 bg-white border border-gray-200 rounded-lg">
+                    {/* Correct Answer Radio/Checkbox */}
+                    <div className="flex items-center pt-2">
+                      {watchedType === 'multiple-choice' ? (
+                        <input
+                          type="radio"
+                          name="correctAnswer"
+                          checked={watchedOptions?.[index]?.isCorrect || false}
+                          onChange={() => handleCorrectAnswerChange(index)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                      ) : (
+                        <input
+                          type="checkbox"
+                          checked={watchedOptions?.[index]?.isCorrect || false}
+                          onChange={(e) => setValue(`options.${index}.isCorrect`, e.target.checked)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                      )}
+                    </div>
+
+                    {/* Option Label */}
+                    <div className="flex items-center pt-2 min-w-[30px]">
+                      <span className="text-sm font-medium text-gray-700">
+                        {getOptionLabel(index)}.
+                      </span>
+                    </div>
+
+                    {/* Option Text with LaTeX Support */}
+                    <div className="flex-1">
+                      <SimpleLatexInput
+                        value={watchedOptions?.[index]?.text || ''}
+                        onChange={(value) => {
+                          setValue(`options.${index}.text`, value);
+                        }}
+                        placeholder={`Lựa chọn ${getOptionLabel(index)} - Nhập văn bản hoặc LaTeX`}
+                        error={errors.options?.[index]?.text?.message}
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Remove Button */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      icon={<TrashIcon className="h-4 w-4" />}
+                      onClick={() => handleRemoveOption(index)}
+                      disabled={fields.length <= 2}
+                      className="text-red-600 hover:text-red-700 mt-1"
+                    >
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              {errors.options && typeof errors.options.message === 'string' && (
+                <p className="mt-2 text-sm text-red-600">{errors.options.message}</p>
+              )}
+            </div>
+          ) : watchedType === 'short-answer' ? (
+            <ShortAnswerFields register={register} setValue={setValue} watch={watch} errors={errors} />
+          ) : watchedType === 'true-false' ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Đáp án đúng *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
                     <input
                       type="radio"
-                      name="correctAnswer"
-                      checked={watchedOptions?.[index]?.isCorrect || false}
-                      onChange={() => handleCorrectAnswerChange(index)}
+                      {...register('correctAnswer')}
+                      value="true"
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                  </div>
-
-                  {/* Option Label */}
-                  <div className="flex items-center pt-2 min-w-[30px]">
-                    <span className="text-sm font-medium text-gray-700">
-                      {getOptionLabel(index)}.
-                    </span>
-                  </div>
-
-                  {/* Option Text with LaTeX Support */}
-                  <div className="flex-1">
-                    <SimpleLatexInput
-                      value={watchedOptions?.[index]?.text || ''}
-                      onChange={(value) => {
-                        setValue(`options.${index}.text`, value);
-                      }}
-                      placeholder={`Lựa chọn ${getOptionLabel(index)} - Nhập văn bản hoặc LaTeX`}
-                      error={errors.options?.[index]?.text?.message}
-                      className="w-full"
+                    <span className="ml-2 text-sm text-gray-700">Đúng</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      {...register('correctAnswer')}
+                      value="false"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                  </div>
-
-                  {/* Remove Button */}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={<TrashIcon className="h-4 w-4" />}
-                    onClick={() => handleRemoveOption(index)}
-                    disabled={fields.length <= 2}
-                    className="text-red-600 hover:text-red-700 mt-1"
-                  >
-                  </Button>
+                    <span className="ml-2 text-sm text-gray-700">Sai</span>
+                  </label>
                 </div>
-              ))}
+              </div>
             </div>
-
-            {errors.options && typeof errors.options.message === 'string' && (
-              <p className="mt-2 text-sm text-red-600">{errors.options.message}</p>
-            )}
-          </div>
+          ) : watchedType === 'essay' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số từ tối thiểu
+                  </label>
+                  <input
+                    type="number"
+                    {...register('minWords', { valueAsNumber: true })}
+                    min="1"
+                    className="block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="VD: 50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số từ tối đa
+                  </label>
+                  <input
+                    type="number"
+                    {...register('maxWords', { valueAsNumber: true })}
+                    min="1"
+                    className="block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="VD: 500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Rubric chấm điểm (tùy chọn)
+                </label>
+                <textarea
+                  {...register('rubric')}
+                  rows={3}
+                  className="block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  placeholder="Nhập hướng dẫn chấm điểm..."
+                />
+              </div>
+            </div>
+          ) : null}
 
           {/* Explanation */}
           <div>

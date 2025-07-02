@@ -98,6 +98,29 @@ export default function QuestionPreview({ question, isOpen, onClose }: QuestionP
           </div>
         );
 
+      case 'short-answer':
+        const saQuestion = question as any;
+        return (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-gray-700">Đáp án chấp nhận được:</h4>
+            <div className="space-y-2">
+              {saQuestion.acceptableAnswers?.map((answer: string, index: number) => (
+                <div key={index} className="p-3 rounded-lg bg-green-50 border border-green-200">
+                  <span className="text-green-800 font-medium">
+                    {index + 1}. {answer}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="text-xs text-gray-500">
+              {saQuestion.caseSensitive ? 
+                'Phân biệt chữ hoa/thường' : 
+                'Không phân biệt chữ hoa/thường'
+              }
+            </div>
+          </div>
+        );
+
       case 'essay':
         const essayQuestion = question as any;
         return (

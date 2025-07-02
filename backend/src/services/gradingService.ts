@@ -242,6 +242,13 @@ export class GradingService {
         feedback = fbResult.feedback;
         break;
 
+      case 'SHORT_ANSWER':
+        const saResult = this.gradeShortAnswer(studentAnswer.answer, typeData, points);
+        earnedPoints = saResult.points;
+        partialCredit = saResult.partialCredit;
+        feedback = saResult.feedback;
+        break;
+
       case 'ESSAY':
         // Essays need manual grading
         earnedPoints = 0;
@@ -397,6 +404,51 @@ export class GradingService {
       partialCredit: isCorrect ? 1 : 0,
       feedback
     };
+  }
+
+  /**
+   * Grade short answer question with exact matching
+   */
+  private gradeShortAnswer(
+    studentAnswer: any,
+    typeData: any,
+    points: number
+  ): { points: number; partialCredit: number; feedback: string } {
+    if (!typeData.acceptableAnswers || !studentAnswer) {
+      return { points: 0, partialCredit: 0, feedback: 'No answer provided' };
+    }
+
+    if (typeof studentAnswer !== 'string') {
+      return { points: 0, partialCredit: 0, feedback: 'Invalid answer format' };
+    }
+
+    const acceptableAnswers = typeData.acceptableAnswers || [];
+    const caseSensitive = typeData.caseSensitive || false;
+    
+    // Normalize student answer (trim whitespace)
+    const normalizedStudentAnswer = studentAnswer.trim();
+    
+    // Check for exact matches
+    const exactMatch = acceptableAnswers.some((accepted: string) => {
+      const studentValue = caseSensitive ? normalizedStudentAnswer : normalizedStudentAnswer.toLowerCase();
+      const acceptedValue = caseSensitive ? accepted.trim() : accepted.trim().toLowerCase();
+      return studentValue === acceptedValue;
+    });
+
+    if (exactMatch) {
+      return {
+        points: points,
+        partialCredit: 1,
+        feedback: 'Correct answer'
+      };
+    } else {
+      const exampleAnswer = acceptableAnswers[0] || 'No correct answer defined';
+      return {
+        points: 0,
+        partialCredit: 0,
+        feedback: `Incorrect. Correct answer example: ${exampleAnswer}`
+      };
+    }
   }
 
   /**

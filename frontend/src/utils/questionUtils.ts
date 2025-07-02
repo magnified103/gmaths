@@ -12,6 +12,7 @@ export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   'multiple-select': 'Trắc nghiệm (nhiều đáp án)', 
   'true-false': 'Đúng/Sai',
   'fill-blank': 'Điền khuyết',
+  'short-answer': 'Câu trả lời ngắn',
   'essay': 'Tự luận',
 };
 
@@ -171,6 +172,8 @@ export function validateQuestionRequiredFields(question: any): boolean {
       return question.correctAnswer !== undefined;
     case 'fill-blank':
       return !!(question.blanks && question.blanks.length > 0);
+    case 'short-answer':
+      return !!(question.acceptableAnswers && question.acceptableAnswers.length > 0);
     case 'essay':
       return true; // Essay questions only need content
     default:

@@ -313,6 +313,38 @@ export const AnswerInput: React.FC<AnswerInputProps> = ({
     );
   };
 
+  const renderShortAnswer = () => {
+    if (question.type !== 'short-answer') return null;
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Câu trả lời ngắn:
+          </label>
+          <input
+            type="text"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value.trim())}
+            disabled={disabled}
+            placeholder="Nhập câu trả lời của bạn..."
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-base"
+          />
+        </div>
+        
+        <div className="text-xs text-gray-500">
+          <p>• Chỉ nhập văn bản thuần, không hỗ trợ công thức toán học</p>
+          <p>• Khoảng trắng đầu/cuối sẽ được loại bỏ tự động</p>
+          {question.caseSensitive ? (
+            <p>• Phân biệt chữ hoa/thường</p>
+          ) : (
+            <p>• Không phân biệt chữ hoa/thường</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderEssay = () => {
     if (question.type !== 'essay') return null;
 
@@ -378,6 +410,7 @@ export const AnswerInput: React.FC<AnswerInputProps> = ({
         {question.type === 'multiple-select' && renderMultipleSelect()}
         {question.type === 'true-false' && renderTrueFalse()}
         {question.type === 'fill-blank' && renderFillBlank()}
+        {question.type === 'short-answer' && renderShortAnswer()}
         {question.type === 'essay' && renderEssay()}
       </div>
     </div>

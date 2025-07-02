@@ -3,7 +3,7 @@
  * Supports extensible question types with LaTeX content
  */
 
-export type QuestionType = 'multiple-choice' | 'multiple-select' | 'true-false' | 'fill-blank' | 'essay';
+export type QuestionType = 'multiple-choice' | 'multiple-select' | 'true-false' | 'fill-blank' | 'short-answer' | 'essay';
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
 /**
@@ -70,6 +70,15 @@ export interface FillBlankQuestion extends BaseQuestion {
 }
 
 /**
+ * Short answer question (single line text with acceptable answers)
+ */
+export interface ShortAnswerQuestion extends BaseQuestion {
+  type: 'short-answer';
+  acceptableAnswers: string[];
+  caseSensitive?: boolean;
+}
+
+/**
  * Essay question (long-form response)
  */
 export interface EssayQuestion extends BaseQuestion {
@@ -108,6 +117,7 @@ export type Question =
   | MultipleSelectQuestion 
   | TrueFalseQuestion 
   | FillBlankQuestion 
+  | ShortAnswerQuestion
   | EssayQuestion;
 
 /**
@@ -126,6 +136,7 @@ export interface QuestionCreateForm {
   options?: Omit<QuestionOption, 'id'>[];
   correctAnswer?: boolean;
   blanks?: Omit<FillBlankOption, 'id'>[];
+  acceptableAnswers?: string[]; // For short-answer questions
   maxWords?: number;
   minWords?: number;
   rubric?: string;

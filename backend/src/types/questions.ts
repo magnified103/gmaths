@@ -6,7 +6,7 @@
 import type { Question, QuestionType, Difficulty, QuestionCategory, Tag } from '@prisma/client';
 
 // Base question interfaces matching frontend - standardized to lowercase
-export type QuestionTypeEnum = 'multiple-choice' | 'multiple-select' | 'true-false' | 'fill-blank' | 'essay';
+export type QuestionTypeEnum = 'multiple-choice' | 'multiple-select' | 'true-false' | 'fill-blank' | 'short-answer' | 'essay';
 export type DifficultyEnum = 'easy' | 'medium' | 'hard';
 
 /**
@@ -60,6 +60,11 @@ export interface EssayData {
   rubric?: string;
 }
 
+export interface ShortAnswerData {
+  acceptableAnswers: string[]; // List of acceptable plaintext answers
+  caseSensitive?: boolean; // Whether answer matching should be case sensitive
+}
+
 /**
  * Union type for all type-specific data
  */
@@ -68,6 +73,7 @@ export type QuestionTypeData =
   | MultipleSelectData 
   | TrueFalseData 
   | FillBlankData 
+  | ShortAnswerData
   | EssayData;
 
 /**
