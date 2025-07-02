@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { API_BASE_URL } from '../api/config';
 
 interface TimerSyncData {
   serverTime: number;
@@ -80,8 +81,18 @@ export const useWebSocketTimer = ({
 
     console.log(`🔌 Connecting WebSocket for exam: ${examId}`);
 
+    // Get WebSocket URL from API base URL
+    const getWebSocketUrl = () => {
+      // If API_BASE_URL is relative (like '/api' in production), use current origin
+      if (API_BASE_URL.startsWith('/')) {
+        return window.location.origin;
+      }
+      // If API_BASE_URL is absolute, extract the base URL (remove /api)
+      return API_BASE_URL.replace('/api', '');
+    };
+
     // Create new socket connection
-    const socket = io('http://localhost:3000', {
+    const socket = io(getWebSocketUrl(), {
       auth: { token },
       transports: ['websocket'],
       timeout: 10000,

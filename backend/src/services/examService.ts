@@ -56,6 +56,7 @@ export class ExamService {
       'MULTIPLE_SELECT': 'multiple-select',
       'TRUE_FALSE': 'true-false',
       'FILL_BLANK': 'fill-blank',
+      'SHORT_ANSWER': 'short-answer',
       'ESSAY': 'essay'
     };
     return typeMap[type] || type.toLowerCase();
@@ -1235,6 +1236,11 @@ export class ExamService {
               }));
             }
             break;
+          case 'SHORT_ANSWER':
+            // Remove acceptableAnswers for security but keep caseSensitive for UI display
+            const { acceptableAnswers, ...shortAnswerData } = cleanTypeData;
+            cleanTypeData = shortAnswerData;
+            break;
           case 'ESSAY':
             // Essay questions don't need answer removal
             break;
@@ -1254,6 +1260,9 @@ export class ExamService {
           // Add other type-specific data at root level for AnswerInput compatibility
           ...(question.type === 'FILL_BLANK' && cleanTypeData.blanks ? { blanks: cleanTypeData.blanks } : {}),
           ...(question.type === 'TRUE_FALSE' && cleanTypeData.showRandomOrder !== undefined ? { showRandomOrder: cleanTypeData.showRandomOrder } : {}),
+          ...(question.type === 'SHORT_ANSWER' ? { 
+            caseSensitive: cleanTypeData.caseSensitive || false
+          } : {}),
           ...(question.type === 'ESSAY' ? { 
             maxWords: cleanTypeData.maxWords, 
             minWords: cleanTypeData.minWords, 
@@ -1870,6 +1879,9 @@ export class ExamService {
         });
         return blanks;
 
+      case 'SHORT_ANSWER':
+        return typeData.acceptableAnswers || [];
+
       case 'ESSAY':
         return 'Manual grading required';
 
@@ -1935,6 +1947,23 @@ export class ExamService {
 
         const fbPartialCredit = totalBlanks > 0 ? correctBlanks / totalBlanks : 0;
         return { earnedPoints: fbPartialCredit * points, isCorrect: fbPartialCredit === 1 };
+
+      case 'SHORT_ANSWER':
+        if (!typeData.acceptableAnswers || !studentAnswer.answer || typeof studentAnswer.answer !== 'string') {
+          return { earnedPoints: 0, isCorrect: false };
+        }
+
+        const acceptableAnswers = typeData.acceptableAnswers || [];
+        const caseSensitive = typeData.caseSensitive || false;
+        const normalizedStudentAnswer = studentAnswer.answer.trim();
+        
+        const saIsCorrect = acceptableAnswers.some((accepted: string) => {
+          const studentValue = caseSensitive ? normalizedStudentAnswer : normalizedStudentAnswer.toLowerCase();
+          const acceptedValue = caseSensitive ? accepted.trim() : accepted.trim().toLowerCase();
+          return studentValue === acceptedValue;
+        });
+
+        return { earnedPoints: saIsCorrect ? points : 0, isCorrect: saIsCorrect };
 
       default:
         return { earnedPoints: 0, isCorrect: false };

@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ClockIcon } from '@heroicons/react/24/outline';
 import { useWebSocketTimer } from '../../hooks/useWebSocket';
+import { API_BASE_URL } from '../../api/config';
 
 /**
  * Props for TimerDisplay component
@@ -151,7 +152,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
         const token = localStorage.getItem('auth-token');
         if (!token) return;
 
-        const response = await fetch(`http://localhost:3000/api/timer/sync?examId=${examId}`, {
+        const response = await fetch(`${API_BASE_URL}/timer/sync?examId=${examId}`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
 
