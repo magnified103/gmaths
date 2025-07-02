@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +16,7 @@ import Button from '../ui/Button';
 import type { Question, QuestionCreateForm, QuestionCategory, QuestionType } from '../../types/questions';
 import { createQuestion, updateQuestion, fetchCategories } from '../../api/questions';
 import { getTextContent, getOptionLabel } from '../../utils/questionUtils';
+import { SimpleLatexInput } from './SimpleLatexInput';
 
 interface QuestionFormProps {
   question?: Question | null;
@@ -610,12 +611,17 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
             </div>
           </div>
 
-          {/* Answer Options */}
+          {/* Answer Options with LaTeX Support */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-medium text-gray-700">
-                Lựa chọn đáp án *
-              </label>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Lựa chọn đáp án *
+                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Hỗ trợ LaTeX cho công thức toán học (VD: $x^2 + 1$, $\frac{1}{2}$)
+                </p>
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -630,9 +636,9 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
 
             <div className="space-y-3">
               {fields.map((field, index) => (
-                <div key={field.id} className="flex items-center space-x-3">
+                <div key={field.id} className="flex items-start space-x-3 p-3 bg-white border border-gray-200 rounded-lg">
                   {/* Correct Answer Radio */}
-                  <div className="flex items-center">
+                  <div className="flex items-center pt-2">
                     <input
                       type="radio"
                       name="correctAnswer"
@@ -642,26 +648,24 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
                     />
                   </div>
 
-                  {/* Option Text */}
+                  {/* Option Label */}
+                  <div className="flex items-center pt-2 min-w-[30px]">
+                    <span className="text-sm font-medium text-gray-700">
+                      {getOptionLabel(index)}.
+                    </span>
+                  </div>
+
+                  {/* Option Text with LaTeX Support */}
                   <div className="flex-1">
-                    <div className="relative">
-                      <span className="absolute left-3 top-2 text-sm text-gray-500">
-                        {getOptionLabel(index)}.
-                      </span>
-                      <input
-                        type="text"
-                        {...register(`options.${index}.text`)}
-                        placeholder={`Lựa chọn ${getOptionLabel(index)}`}
-                        className={`block w-full pl-8 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                          errors.options?.[index]?.text ? 'border-red-300' : 'border-gray-300'
-                        }`}
-                      />
-                    </div>
-                    {errors.options?.[index]?.text && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.options[index]?.text?.message}
-                      </p>
-                    )}
+                    <SimpleLatexInput
+                      value={watchedOptions?.[index]?.text || ''}
+                      onChange={(value) => {
+                        setValue(`options.${index}.text`, value);
+                      }}
+                      placeholder={`Lựa chọn ${getOptionLabel(index)} - Nhập văn bản hoặc LaTeX`}
+                      error={errors.options?.[index]?.text?.message}
+                      className="w-full"
+                    />
                   </div>
 
                   {/* Remove Button */}
@@ -672,7 +676,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
                     icon={<TrashIcon className="h-4 w-4" />}
                     onClick={() => handleRemoveOption(index)}
                     disabled={fields.length <= 2}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-600 hover:text-red-700 mt-1"
                   >
                   </Button>
                 </div>
@@ -682,10 +686,6 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
             {errors.options && typeof errors.options.message === 'string' && (
               <p className="mt-2 text-sm text-red-600">{errors.options.message}</p>
             )}
-
-            <p className="mt-2 text-xs text-gray-500">
-              Chọn đáp án đúng bằng cách click vào nút radio bên trái
-            </p>
           </div>
 
           {/* Explanation */}

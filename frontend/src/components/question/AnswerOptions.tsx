@@ -7,6 +7,7 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Button from '../ui/Button';
+import { SimpleLatexInput } from './SimpleLatexInput';
 
 interface AnswerOption {
   id: string;
@@ -38,7 +39,7 @@ interface SortableOptionProps {
 }
 
 /**
- * Sortable answer option item component
+ * Sortable answer option item component with LaTeX support
  */
 function SortableOption({
   option,
@@ -102,21 +103,16 @@ function SortableOption({
         </span>
       </div>
 
-      {/* Option Text Input */}
+      {/* LaTeX-enabled Option Text Input */}
       <div className="flex-1">
-        <input
-          type="text"
+        <SimpleLatexInput
           value={option.text}
-          onChange={(e) => onTextChange(e.target.value)}
-          placeholder={`Lựa chọn ${String.fromCharCode(65 + index)}`}
+          onChange={onTextChange}
+          placeholder={`Lựa chọn ${String.fromCharCode(65 + index)} - Hỗ trợ LaTeX (VD: $x^2 + 1$)`}
           disabled={disabled}
-          className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-            error ? 'border-red-300' : 'border-gray-300'
-          } ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+          error={error}
+          className="answer-option-editor"
         />
-        {error && (
-          <p className="mt-1 text-sm text-red-600">{error}</p>
-        )}
       </div>
 
       {/* Remove Button */}
@@ -135,8 +131,8 @@ function SortableOption({
 }
 
 /**
- * Answer options component cho quản lý các lựa chọn trả lời
- * Hỗ trợ drag-drop để sắp xếp lại thứ tự
+ * Answer options component for managing multiple choice answers
+ * Now supports LaTeX input for mathematical expressions
  */
 export default function AnswerOptions({
   options,
@@ -220,11 +216,11 @@ export default function AnswerOptions({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700">
             Lựa chọn đáp án *
           </label>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500 mt-1">
             {allowMultipleCorrect 
               ? `Có thể chọn nhiều đáp án đúng. Hiện tại: ${correctCount} đáp án đúng`
               : `Phải có đúng 1 đáp án đúng. Hiện tại: ${correctCount} đáp án đúng`
@@ -269,24 +265,7 @@ export default function AnswerOptions({
         ))}
       </div>
 
-      {/* Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-        <div className="flex">
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">Hướng dẫn:</h3>
-            <div className="mt-2 text-sm text-blue-700">
-              <ul className="list-disc list-inside space-y-1">
-                <li>Kéo thả biểu tượng ⋮⋮ để sắp xếp lại thứ tự lựa chọn</li>
-                <li>Click vào nút radio để chọn đáp án đúng</li>
-                <li>Tối thiểu {minOptions} lựa chọn, tối đa {maxOptions} lựa chọn</li>
-                {!allowMultipleCorrect && (
-                  <li>Chỉ được chọn 1 đáp án đúng</li>
-                )}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 } 

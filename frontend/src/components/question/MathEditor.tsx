@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import 'mathlive';
 
 interface MathEditorProps {
   /** Giá trị LaTeX hiện tại */
@@ -163,66 +164,55 @@ export const MathEditor: React.FC<MathEditorProps> = ({
   error,
   autoWrapVietnamese = true
 }) => {
-  const mathfieldRef = useRef<HTMLElement | null>(null);
+  const mathfieldRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [lastProcessedValue, setLastProcessedValue] = useState('');
 
   useEffect(() => {
-    // Import MathLive dynamically to ensure it loads properly
+    // Initialize MathLive mathfield
     const initializeMathfield = async () => {
       try {
-        // Import MathLive with error handling
-        // const mathLive = await import('mathlive');
-        
-        // Configure font loading to use local fonts from public directory
-        // This avoids OTS parsing errors with node_modules fonts
-        if (typeof window !== 'undefined') {
-          // Set configuration to use local fonts from /fonts/ directory
-          const config = {
-            fontsDirectory: '/fonts/', // Use fonts from public/fonts/
-            computeEngine: 'auto'
-          };
-          
-          // Apply configuration if MathfieldElement is available
-          if ((window as any).MathfieldElement && (window as any).MathfieldElement.configure) {
-            try {
-              (window as any).MathfieldElement.configure(config);
-            } catch (configError) {
-              console.warn('MathLive configuration warning:', configError);
-            }
-          }
-        }
-        
-        if (mathfieldRef.current) {
-          return;
+        // Ensure MathLive is loaded
+        if (typeof customElements.get('math-field') === 'undefined') {
+          // Wait a bit for MathLive to register
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        // Create mathfield element using web component
+        if (!containerRef.current) return;
+
+        // Create mathfield element
         const mathfield = document.createElement('math-field') as any;
         
-        // Configure mathfield using attributes for better compatibility
-        mathfield.setAttribute('virtual-keyboard-mode', 'manual');
-        mathfield.setAttribute('smart-mode', 'true');
-        
-        // Set placeholder if provided
-        if (placeholder) {
-          mathfield.setAttribute('placeholder', placeholder);
-        }
-        
+        // Configure the mathfield
+        mathfield.setOptions({
+          virtualKeyboardMode: 'manual',
+          smartMode: true,
+          defaultMode: 'math',
+          macros: {
+            ...mathfield.getOption('macros'),
+            // Add custom Vietnamese macros if needed
+          }
+        });
+
         // Set initial value
         if (value) {
           mathfield.value = value;
         }
 
-        // Handle input changes with Vietnamese auto-wrapping
-        mathfield.addEventListener('input', () => {
-          let latex = mathfield.value;
+        // Set placeholder
+        if (placeholder) {
+          mathfield.placeholder = placeholder;
+        }
+
+        // Handle input changes
+        mathfield.addEventListener('input', (evt: any) => {
+          let latex = evt.target.value;
           
           // Apply Vietnamese auto-wrapping if enabled
           if (autoWrapVietnamese && latex !== lastProcessedValue) {
             const processedLatex = VietnameseTextProcessor.autoWrapVietnameseText(latex);
             if (processedLatex !== latex) {
-              // Update the mathfield with wrapped text
               mathfield.value = processedLatex;
               latex = processedLatex;
             }
@@ -234,17 +224,41 @@ export const MathEditor: React.FC<MathEditorProps> = ({
 
         // Set disabled state
         if (disabled) {
-          mathfield.setAttribute('readonly', 'true');
+          mathfield.readOnly = true;
         }
+
+        // Clear container and append mathfield
+        containerRef.current.innerHTML = '';
+        containerRef.current.appendChild(mathfield);
 
         // Store reference
         mathfieldRef.current = mathfield;
         setIsLoaded(true);
+
       } catch (error) {
         console.error('Failed to initialize MathLive:', error);
-        // Set loaded to true even on error to show the container
-        setIsLoaded(true);
+        // Show fallback text input
+        createFallbackInput();
       }
+    };
+
+    const createFallbackInput = () => {
+      if (!containerRef.current) return;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = value;
+      input.placeholder = placeholder;
+      input.disabled = disabled;
+      input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+      
+      input.addEventListener('input', (e) => {
+        onChange?.((e.target as HTMLInputElement).value);
+      });
+
+      containerRef.current.innerHTML = '';
+      containerRef.current.appendChild(input);
+      setIsLoaded(true);
     };
 
     initializeMathfield();
@@ -254,7 +268,7 @@ export const MathEditor: React.FC<MathEditorProps> = ({
         try {
           mathfieldRef.current.remove();
         } catch (e) {
-          // Ignore errors during cleanup
+          // Ignore cleanup errors
         }
         mathfieldRef.current = null;
       }
@@ -263,9 +277,9 @@ export const MathEditor: React.FC<MathEditorProps> = ({
 
   // Update value when prop changes
   useEffect(() => {
-    if (mathfieldRef.current && (mathfieldRef.current as any).value !== value) {
+    if (mathfieldRef.current && mathfieldRef.current.value !== value) {
       try {
-        (mathfieldRef.current as any).value = value;
+        mathfieldRef.current.value = value;
         setLastProcessedValue(value);
       } catch (e) {
         console.warn('Failed to update MathLive value:', e);
@@ -276,43 +290,22 @@ export const MathEditor: React.FC<MathEditorProps> = ({
   // Update disabled state when prop changes
   useEffect(() => {
     if (mathfieldRef.current) {
-      if (disabled) {
-        mathfieldRef.current.setAttribute('readonly', 'true');
-      } else {
-        mathfieldRef.current.removeAttribute('readonly');
-      }
+      mathfieldRef.current.readOnly = disabled;
     }
   }, [disabled]);
-
-  /**
-   * Chèn mathfield element vào DOM container
-   */
-  const mathfieldContainerRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    if (mathfieldRef.current && mathfieldContainerRef.current && isLoaded) {
-      try {
-        // Clear container and append mathfield
-        mathfieldContainerRef.current.innerHTML = '';
-        mathfieldContainerRef.current.appendChild(mathfieldRef.current);
-      } catch (e) {
-        console.warn('Failed to append MathLive to container:', e);
-      }
-    }
-  }, [isLoaded]);
 
   /**
    * Insert text with Vietnamese auto-wrapping
    */
   const insertText = (text: string) => {
-    if (mathfieldRef.current) {
+    if (mathfieldRef.current && mathfieldRef.current.insert) {
       try {
         let processedText = text;
         if (autoWrapVietnamese && VietnameseTextProcessor.containsVietnamese(text)) {
           processedText = VietnameseTextProcessor.autoWrapVietnameseText(text);
         }
-        (mathfieldRef.current as any).insert(processedText);
-        (mathfieldRef.current as any).focus();
+        mathfieldRef.current.insert(processedText);
+        mathfieldRef.current.focus();
       } catch (e) {
         console.warn('Failed to insert text:', e);
       }
@@ -335,8 +328,8 @@ export const MathEditor: React.FC<MathEditorProps> = ({
           } ${disabled ? 'bg-gray-50' : 'bg-white'}`}
         >
           <div 
-            ref={mathfieldContainerRef}
-            className="mathfield-container"
+            ref={containerRef}
+            className="mathfield-container w-full"
             style={{ fontSize: '16px' }}
           />
           {!isLoaded && (
@@ -390,16 +383,7 @@ export const MathEditor: React.FC<MathEditorProps> = ({
             
             <button
               type="button"
-              onClick={() => {
-                if (mathfieldRef.current) {
-                  try {
-                    (mathfieldRef.current as any).insert('\\frac{}{}');
-                    (mathfieldRef.current as any).focus();
-                  } catch (e) {
-                    console.warn('Failed to insert fraction:', e);
-                  }
-                }
-              }}
+              onClick={() => insertText('\\frac{}{}')}
               className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-100"
               title="Phân số"
             >
@@ -407,16 +391,7 @@ export const MathEditor: React.FC<MathEditorProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (mathfieldRef.current) {
-                  try {
-                    (mathfieldRef.current as any).insert('^{}');
-                    (mathfieldRef.current as any).focus();
-                  } catch (e) {
-                    console.warn('Failed to insert power:', e);
-                  }
-                }
-              }}
+              onClick={() => insertText('^{}')}
               className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-100"
               title="Lũy thừa"
             >
@@ -424,16 +399,7 @@ export const MathEditor: React.FC<MathEditorProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (mathfieldRef.current) {
-                  try {
-                    (mathfieldRef.current as any).insert('\\sqrt{}');
-                    (mathfieldRef.current as any).focus();
-                  } catch (e) {
-                    console.warn('Failed to insert sqrt:', e);
-                  }
-                }
-              }}
+              onClick={() => insertText('\\sqrt{}')}
               className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-100"
               title="Căn bậc hai"
             >
@@ -441,16 +407,7 @@ export const MathEditor: React.FC<MathEditorProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (mathfieldRef.current) {
-                  try {
-                    (mathfieldRef.current as any).insert('\\sum_{i=1}^{n}');
-                    (mathfieldRef.current as any).focus();
-                  } catch (e) {
-                    console.warn('Failed to insert sum:', e);
-                  }
-                }
-              }}
+              onClick={() => insertText('\\sum_{i=1}^{n}')}
               className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-100"
               title="Tổng"
             >
@@ -458,16 +415,7 @@ export const MathEditor: React.FC<MathEditorProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (mathfieldRef.current) {
-                  try {
-                    (mathfieldRef.current as any).insert('\\int_{a}^{b}');
-                    (mathfieldRef.current as any).focus();
-                  } catch (e) {
-                    console.warn('Failed to insert integral:', e);
-                  }
-                }
-              }}
+              onClick={() => insertText('\\int_{a}^{b}')}
               className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-100"
               title="Tích phân"
             >
@@ -475,16 +423,7 @@ export const MathEditor: React.FC<MathEditorProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (mathfieldRef.current) {
-                  try {
-                    (mathfieldRef.current as any).insert('\\lim_{x \\to \\infty}');
-                    (mathfieldRef.current as any).focus();
-                  } catch (e) {
-                    console.warn('Failed to insert limit:', e);
-                  }
-                }
-              }}
+              onClick={() => insertText('\\lim_{x \\to \\infty}')}
               className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-100"
               title="Giới hạn"
             >
