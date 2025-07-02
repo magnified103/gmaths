@@ -65,13 +65,7 @@ const questionSchema = z.object({
   options: z
     .array(
       z.object({
-        text: z
-          .string()
-          .min(1, 'Nội dung lựa chọn không được để trống')
-          .refine(
-            (value) => getTextContent(value).length <= 200,
-            'Nội dung lựa chọn không được quá 200 ký tự'
-          ),
+        text: z.string(),
         isCorrect: z.boolean(),
       })
     )
@@ -99,29 +93,100 @@ const questionSchema = z.object({
   maxWords: z.number().min(1).optional(),
   minWords: z.number().min(1).optional(),
   rubric: z.string().optional(),
-}).refine((data) => {
-  // Type-specific validation
+}).superRefine((data, ctx) => {
+  // Type-specific validation with specific error messages
   switch (data.type) {
     case 'multiple-choice':
     case 'multiple-select':
       if (!data.options || data.options.length < 2) {
-        return false;
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Cần ít nhất 2 lựa chọn',
+          path: ['options'],
+        });
+        return;
       }
+      
+      // Check for empty options
+      data.options.forEach((option, index) => {
+        if (!option.text || option.text.trim() === '') {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Nội dung lựa chọn không được để trống',
+            path: ['options', index, 'text'],
+          });
+        } else if (getTextContent(option.text).length > 200) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Nội dung lựa chọn không được quá 200 ký tự',
+            path: ['options', index, 'text'],
+          });
+        }
+      });
+      
       const correctCount = data.options.filter(opt => opt.isCorrect).length;
-      return data.type === 'multiple-choice' ? correctCount === 1 : correctCount >= 1;
+      if (data.type === 'multiple-choice' && correctCount !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Chỉ được chọn 1 đáp án đúng',
+          path: ['options'],
+        });
+      } else if (data.type === 'multiple-select' && correctCount < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Cần ít nhất 1 đáp án đúng',
+          path: ['options'],
+        });
+      }
+      break;
+      
     case 'true-false':
-      return data.correctAnswer !== undefined;
+      if (data.correctAnswer === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Vui lòng chọn đáp án đúng',
+          path: ['correctAnswer'],
+        });
+      }
+      break;
+      
     case 'fill-blank':
-      return data.blanks && data.blanks.length > 0;
+      if (!data.blanks || data.blanks.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Cần ít nhất 1 chỗ trống',
+          path: ['blanks'],
+        });
+      }
+      break;
+      
     case 'short-answer':
-      return data.acceptableAnswers && data.acceptableAnswers.length > 0;
+      if (!data.acceptableAnswers || data.acceptableAnswers.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Cần ít nhất 1 đáp án được chấp nhận',
+          path: ['acceptableAnswers'],
+        });
+      } else if (!data.acceptableAnswers.some(answer => answer.trim().length > 0)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Ít nhất một đáp án phải có nội dung',
+          path: ['acceptableAnswers'],
+        });
+      }
+      break;
+      
     case 'essay':
-      return true; // Essay questions don't require specific fields
+      // Essay questions don't require specific fields
+      break;
+      
     default:
-      return false;
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Loại câu hỏi không hợp lệ',
+        path: ['type'],
+      });
   }
-}, {
-  message: "Vui lòng điền đầy đủ thông tin cho loại câu hỏi đã chọn",
 });
 
 type QuestionFormData = z.infer<typeof questionSchema>;
@@ -163,6 +228,7 @@ const ShortAnswerFields: React.FC<ShortAnswerFieldsProps> = ({
     newAnswers[index] = value;
     setAnswers(newAnswers);
     setValue('acceptableAnswers', newAnswers);
+    console.log('Updated acceptableAnswers:', newAnswers);
   };
 
   // Watch for external changes
@@ -424,18 +490,98 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
   }, [isOpen, question, reset, replace]);
 
   /**
-   * Update question type when form type changes
+   * Update question type when form type changes and clear irrelevant fields
    */
   useEffect(() => {
     if (watchedType) {
       setQuestionType(watchedType);
+      
+      // Clear irrelevant fields when question type changes
+      switch (watchedType) {
+        case 'multiple-choice':
+        case 'multiple-select':
+          // Clear non-option fields
+          setValue('acceptableAnswers', undefined);
+          setValue('correctAnswer', undefined);
+          setValue('blanks', undefined);
+          setValue('maxWords', undefined);
+          setValue('minWords', undefined);
+          setValue('rubric', undefined);
+          setValue('showRandomOrder', undefined);
+          setValue('caseSensitive', undefined);
+          
+          // Ensure we have default options
+          if (!watchedOptions || watchedOptions.length === 0) {
+            replace([
+              { text: '', isCorrect: false },
+              { text: '', isCorrect: false },
+              { text: '', isCorrect: true },
+              { text: '', isCorrect: false },
+            ]);
+          }
+          break;
+          
+        case 'true-false':
+          // Clear all other fields
+          setValue('options', undefined);
+          setValue('acceptableAnswers', undefined);
+          setValue('blanks', undefined);
+          setValue('maxWords', undefined);
+          setValue('minWords', undefined);
+          setValue('rubric', undefined);
+          setValue('caseSensitive', undefined);
+          replace([]); // Clear options array
+          break;
+          
+        case 'fill-blank':
+          // Clear all other fields
+          setValue('options', undefined);
+          setValue('acceptableAnswers', undefined);
+          setValue('correctAnswer', undefined);
+          setValue('maxWords', undefined);
+          setValue('minWords', undefined);
+          setValue('rubric', undefined);
+          setValue('showRandomOrder', undefined);
+          replace([]); // Clear options array
+          break;
+          
+        case 'short-answer':
+          // Clear all other fields
+          setValue('options', undefined);
+          setValue('correctAnswer', undefined);
+          setValue('blanks', undefined);
+          setValue('maxWords', undefined);
+          setValue('minWords', undefined);
+          setValue('rubric', undefined);
+          setValue('showRandomOrder', undefined);
+          replace([]); // Clear options array
+          
+          // Set default acceptable answers if not already set
+          const currentAnswers = watch('acceptableAnswers');
+          if (!currentAnswers || currentAnswers.length === 0) {
+            setValue('acceptableAnswers', ['']);
+          }
+          break;
+          
+        case 'essay':
+          // Clear all other fields
+          setValue('options', undefined);
+          setValue('acceptableAnswers', undefined);
+          setValue('correctAnswer', undefined);
+          setValue('blanks', undefined);
+          setValue('showRandomOrder', undefined);
+          setValue('caseSensitive', undefined);
+          replace([]); // Clear options array
+          break;
+      }
     }
-  }, [watchedType]);
+  }, [watchedType, setValue, replace, watchedOptions, watch]);
 
   /**
    * Handle form submission
    */
   const onSubmit = async (data: QuestionFormData) => {
+    console.log('Form submit triggered with data:', data);
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -487,11 +633,13 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
           break;
 
         case 'short-answer':
+          console.log('Processing short-answer data:', data.acceptableAnswers);
           questionData = {
             ...baseQuestionData,
             acceptableAnswers: data.acceptableAnswers?.filter(answer => answer.trim().length > 0) || [],
             caseSensitive: data.caseSensitive ?? false,
           };
+          console.log('Short-answer questionData:', questionData);
           break;
 
         case 'essay':
@@ -560,28 +708,6 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
     setValue('content', latex);
   };
 
-  const modalFooter = (
-    <>
-      <Button
-        type="submit"
-        variant="primary"
-        isLoading={isSubmitting}
-        loadingText={isEditing ? 'Đang cập nhật...' : 'Đang tạo...'}
-        onClick={handleSubmit(onSubmit)}
-      >
-        {isEditing ? 'Cập nhật câu hỏi' : 'Tạo câu hỏi'}
-      </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={onClose}
-        disabled={isSubmitting}
-      >
-        Hủy
-      </Button>
-    </>
-  );
-
   return (
     <Modal
       isOpen={isOpen}
@@ -589,9 +715,10 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
       title={isEditing ? 'Chỉnh sửa câu hỏi' : 'Tạo câu hỏi mới'}
       subtitle="Tạo câu hỏi toán học với editor LaTeX"
       size="2xl"
-      footer={modalFooter}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="px-4 pb-4 sm:px-6">
+      <form onSubmit={handleSubmit(onSubmit, (errors) => {
+        console.log('Form validation errors:', errors);
+      })} className="px-4 pb-4 sm:px-6">
         {/* Submit Error */}
         {submitError && (
           <Alert 
@@ -970,6 +1097,26 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Form Actions */}
+        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Hủy
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            isLoading={isSubmitting}
+            loadingText={isEditing ? 'Đang cập nhật...' : 'Đang tạo...'}
+          >
+            {isEditing ? 'Cập nhật câu hỏi' : 'Tạo câu hỏi'}
+          </Button>
         </div>
       </form>
     </Modal>

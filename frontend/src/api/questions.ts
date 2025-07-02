@@ -58,6 +58,13 @@ function prepareQuestionData(formData: QuestionCreateForm) {
       };
       break;
 
+    case 'short-answer':
+      typeData = {
+        acceptableAnswers: formData.acceptableAnswers?.filter(answer => answer.trim().length > 0) || [],
+        caseSensitive: formData.caseSensitive || false
+      };
+      break;
+
     case 'essay':
       typeData = {
         maxWords: formData.maxWords,
