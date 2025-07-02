@@ -300,14 +300,14 @@ export const exportExamResults = async (examId: string): Promise<Blob> => {
  * Get all attempts for current student for a specific exam
  */
 export const getExamAttempts = async (examId: string): Promise<ExamAttempt[]> => {
-  return apiFetch<ExamAttempt[]>(`/grading/exams/${examId}/attempts/me`);
+  return apiFetch<ExamAttempt[]>(`/grading/exams/${examId}/attempts`);
 };
 
 /**
  * Get exam results for a specific attempt for current student
  */
 export const getExamAttemptResults = async (examId: string, attemptNumber: number): Promise<ExamResult> => {
-  return apiFetch<ExamResult>(`/grading/exams/${examId}/attempts/${attemptNumber}/results/me`);
+  return apiFetch<ExamResult>(`/grading/exams/${examId}/attempts/${attemptNumber}`);
 };
 
 /**
@@ -318,7 +318,7 @@ export const getStudentExamAttemptResults = async (
   userId: string, 
   attemptNumber: number
 ): Promise<ExamResult> => {
-  return apiFetch<ExamResult>(`/grading/exams/${examId}/attempts/${attemptNumber}/results/${userId}`);
+  return apiFetch<ExamResult>(`/grading/exams/${examId}/attempts/${userId}/${attemptNumber}`);
 };
 
 /**
