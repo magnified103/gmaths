@@ -46,7 +46,7 @@ export const RichTextDisplay: React.FC<RichTextDisplayProps> = ({
     // Handle display math first ($$...$$)
     processedContent = processedContent.replace(
       /\$\$([^$]+)\$\$/g,
-      (match, latex) => {
+      (_match, latex) => {
         try {
           const renderedMath = katex.renderToString(latex.trim(), {
             throwOnError: false,
@@ -64,7 +64,7 @@ export const RichTextDisplay: React.FC<RichTextDisplayProps> = ({
     // Handle inline math ($...$) - avoid matching already processed display math
     processedContent = processedContent.replace(
       /(?<!\$)\$([^$\n]+)\$(?!\$)/g,
-      (match, latex) => {
+      (_match, latex) => {
         try {
           const renderedMath = katex.renderToString(latex.trim(), {
             throwOnError: false,
@@ -82,7 +82,7 @@ export const RichTextDisplay: React.FC<RichTextDisplayProps> = ({
     // Handle LaTeX expressions in \(...\) format (inline)
     processedContent = processedContent.replace(
       /\\[(]([^)]+)\\[)]/g,
-      (match, latex) => {
+      (_match, latex) => {
         try {
           const renderedMath = katex.renderToString(latex.trim(), {
             throwOnError: false,
@@ -100,7 +100,7 @@ export const RichTextDisplay: React.FC<RichTextDisplayProps> = ({
     // Handle LaTeX expressions in \[...\] format (display)
     processedContent = processedContent.replace(
       /\\[([]([^)]+)\\[\]]/g,
-      (match, latex) => {
+      (_match, latex) => {
         try {
           const renderedMath = katex.renderToString(latex.trim(), {
             throwOnError: false,
