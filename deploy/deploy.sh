@@ -10,7 +10,7 @@ SOURCE_DIR="/home/ubuntu/gmaths-education-website" # Your local workspace
 APP_DIR="/var/www/gmaths"
 BACKEND_DIR="$APP_DIR/backend"
 FRONTEND_DIR="$APP_DIR/frontend"
-DOMAIN="ec2-16-176-6-117.ap-southeast-2.compute.amazonaws.com"  # Update this
+DOMAIN="ec2-13-210-240-200.ap-southeast-2.compute.amazonaws.com"  # Update this
 
 echo "=== GMATHS Education Website Deployment ==="
 echo "Deploying from: $SOURCE_DIR"
