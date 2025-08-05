@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import formbody from '@fastify/formbody';
 import multipart from '@fastify/multipart';
+import jwt from '@fastify/jwt';
 import { Server as SocketIOServer } from 'socket.io';
 import { authRoutes } from './routes/authRoutes';
 import { adminRoutes } from './routes/adminRoutes';
@@ -45,6 +46,11 @@ async function registerPlugins(): Promise<void> {
 
   await fastify.register(formbody);
   await fastify.register(multipart);
+
+  // Register fastify-jwt
+  fastify.register(jwt, {
+    secret: process.env.JWT_SECRET || 'a-very-secret-key-that-should-be-in-env',
+  });
 
   // TODO: Add rate limiting back with proper TypeScript types
 }
@@ -157,4 +163,4 @@ process.on('SIGINT', async () => {
 });
 
 // Start the server
-start(); 
+start();

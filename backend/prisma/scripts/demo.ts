@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -108,35 +108,33 @@ async function seedTags() {
 async function main() {
   console.log('🌱 Starting database seeding...');
 
-  // Check if admin user already exists
-  const existingAdmin = await prisma.user.findFirst({
-    where: {
-      role: UserRole.ADMIN,
+  // Create default admin user
+  const adminPassword = await hashPassword('Admin@2024!');
+
+  const adminData = {
+    username: 'admin',
+    email: 'admin@gmaths.edu.vn',
+    password: adminPassword,
+    roles: {
+      connect: [
+        { slug: 'superuser' },
+        { slug: 'staff' },
+      ]
     },
+    emailVerified: true, // Admin account is pre-verified
+  };
+    
+  const adminUser = await prisma.user.upsert({
+    where: { username: 'admin' },
+    update: adminData,
+    create: adminData,
   });
 
-  if (!existingAdmin) {
-    // Create default admin user
-    const adminPassword = await hashPassword('Admin@2024!');
-    
-    const adminUser = await prisma.user.create({
-      data: {
-        username: 'admin',
-        email: 'admin@gmaths.edu.vn',
-        password: adminPassword,
-        role: UserRole.ADMIN,
-        emailVerified: true, // Admin account is pre-verified
-      },
-    });
-
-    console.log('✅ Created default admin user:');
-    console.log(`   Email: ${adminUser.email}`);
-    console.log(`   Username: ${adminUser.username}`);
-    console.log(`   Password: Admin@2024!`);
-    console.log('   ⚠️  Please change the default password after first login!');
-  } else {
-    console.log('✅ Admin user already exists, skipping creation');
-  }
+  console.log('✅ Created default admin user:');
+  console.log(`   Email: ${adminUser.email}`);
+  console.log(`   Username: ${adminUser.username}`);
+  console.log(`   Password: Admin@2024!`);
+  console.log('   ⚠️  Please change the default password after first login!');
 
   // Seed question categories and tags
   await seedCategories();

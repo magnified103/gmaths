@@ -12,13 +12,14 @@ import {
   EmailVerificationInput
 } from '../utils/validation';
 import {
+  getUserById,
   registerUser,
   loginUser,
   requestPasswordReset,
   resetPassword,
   verifyEmail
 } from '../services/authService';
-import { authenticateToken } from '../utils/authMiddleware';
+import { requireLogin } from '../utils/authMiddleware';
 import { handleRouteError, successResponse } from '../utils/errorHandler';
 
 /**
@@ -47,10 +48,14 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/auth/login', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = loginSchema.parse(request.body) as LoginInput;
-      
-      const result = await loginUser(data);
 
-      return reply.send(successResponse(result, 'Đăng nhập thành công'));
+      const user = await loginUser(data);
+      const token = await reply.jwtSign({ userId: user.id });
+
+      return reply.send(successResponse({
+        user: user,
+        token,
+      }, 'Đăng nhập thành công'));
     } catch (error) {
       return handleRouteError(error, reply, 'User Login');
     }
@@ -97,18 +102,12 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
   // Get current user (protected route)
   fastify.get('/auth/me', {
-    preHandler: authenticateToken
+    preHandler: requireLogin
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      if (!request.user) {
-        return reply.status(401).send({
-          error: 'Unauthorized',
-          message: 'Yêu cầu đăng nhập',
-          statusCode: 401
-        });
-      }
-
-      return reply.send(successResponse({ user: request.user }, 'Thông tin người dùng'));
+      // @ts-ignore
+      const user = await getUserById(request.userId as string);
+      return reply.send(successResponse({ user }, 'Thông tin người dùng'));
     } catch (error) {
       return handleRouteError(error, reply, 'Get Current User');
     }
@@ -116,7 +115,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
   // Logout (client-side token removal, but we can blacklist if needed later)
   fastify.post('/auth/logout', {
-    preHandler: authenticateToken
+    preHandler: requireLogin
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       // For now, logout is handled client-side by removing the token
@@ -127,4 +126,4 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       return handleRouteError(error, reply, 'User Logout');
     }
   });
-} 
+}

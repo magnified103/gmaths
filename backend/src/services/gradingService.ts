@@ -3,10 +3,8 @@
  * Handles all question types with sophisticated scoring algorithms
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/db';
 import { ExamAnswer, ExamSubmission } from '../types/exam';
-
-const prisma = new PrismaClient();
 
 /**
  * Question scoring result interface

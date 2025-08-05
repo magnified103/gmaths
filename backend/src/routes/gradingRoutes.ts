@@ -4,7 +4,8 @@
  */
 
 import { FastifyInstance, FastifyRequest } from 'fastify';
-import { authenticateToken, requireRole } from '../utils/authMiddleware';
+import { authenticate, requirePermission } from '../utils/authMiddleware';
+import { hasPermission } from '../services/permissionService';
 import { ExamService } from '../services/examService';
 import { handleRouteError } from '../utils/errorHandler';
 
@@ -42,17 +43,6 @@ interface LeaderboardQuery {
 }
 
 /**
- * Extract user ID from authenticated request
- */
-function getUserIdFromRequest(request: FastifyRequest): string {
-  const user = request.user;
-  if (!user?.id) {
-    throw new Error('User not authenticated');
-  }
-  return user.id;
-}
-
-/**
  * Grading and analytics routes
  */
 export async function gradingRoutes(fastify: FastifyInstance) {
@@ -65,7 +55,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get detailed exam results for a specific student (Admin only)
      */
     fastify.get<{ Params: ExamUserParams }>('/exams/:examId/results/:userId', {
-      preHandler: [authenticateToken, requireRole('ADMIN')]
+      preHandler: [authenticate, requirePermission('read', 'ExamResult')]
     }, async (request, reply) => {
       try {
         const { examId, userId } = request.params;
@@ -86,11 +76,12 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get detailed exam results for current student
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/results/me', {
-      preHandler: authenticateToken
+      preHandler: authenticate
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
-        const userId = getUserIdFromRequest(request);
+        // @ts-ignore
+        const userId = request.userId;
         
         const results = await examService.getExamResults(examId, userId);
         
@@ -108,7 +99,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get leaderboard for an exam
      */
     fastify.get<{ Params: ExamParams; Querystring: LeaderboardQuery }>('/exams/:examId/leaderboard', {
-      preHandler: authenticateToken
+      preHandler: authenticate
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -134,7 +125,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get performance analytics for an exam (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/analytics', {
-      preHandler: [authenticateToken, requireRole('ADMIN')]
+      preHandler: [authenticate, requirePermission('read', 'ExamAnalytics')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -155,15 +146,16 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get all exam results for a specific student (Admin or self only)
      */
     fastify.get<{ Params: UserParams }>('/students/:userId/results', {
-      preHandler: authenticateToken
+      preHandler: authenticate
     }, async (request, reply) => {
       try {
         const { userId } = request.params;
-        const currentUserId = getUserIdFromRequest(request);
-        const userRole = request.user?.role;
+        // @ts-ignore
+        const currentUserId = request.userId;
         
-        // Check permissions - admin can view any student, students can only view themselves
-        if (userRole !== 'ADMIN' && currentUserId !== userId) {
+        const canView = await hasPermission(currentUserId, 'studentresult:read');
+
+        if (!canView && currentUserId !== userId) {
           return reply.code(403).send({
             error: 'Forbidden',
             message: 'You can only view your own results'
@@ -187,10 +179,11 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get all exam results for current student
      */
     fastify.get('/students/me/results', {
-      preHandler: authenticateToken
+      preHandler: authenticate
     }, async (request, reply) => {
       try {
-        const userId = getUserIdFromRequest(request);
+        // @ts-ignore
+        const userId = request.userId;
         
         const results = await examService.getStudentExamHistory(userId);
         
@@ -208,10 +201,11 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get all exam results for current student grouped by exam
      */
     fastify.get('/students/me/results/grouped', {
-      preHandler: authenticateToken
+      preHandler: authenticate
     }, async (request, reply) => {
       try {
-        const userId = getUserIdFromRequest(request);
+        // @ts-ignore
+        const userId = request.userId;
         
         const results = await examService.getStudentExamHistoryGrouped(userId);
         
@@ -229,7 +223,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get grading dashboard statistics (Admin only)
      */
     fastify.get('/dashboard/stats', {
-      preHandler: [authenticateToken, requireRole('ADMIN')]
+      preHandler: [authenticate, requirePermission('read', 'GradingDashboard')]
     }, async (request, reply) => {
       try {
         const stats = await examService.getGradingDashboardStats();
@@ -248,7 +242,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Regrade an exam with updated scoring algorithms (Admin only)
      */
     fastify.post<{ Params: ExamParams }>('/exams/:examId/regrade', {
-      preHandler: [authenticateToken, requireRole('ADMIN')]
+      preHandler: [authenticate, requirePermission('regrade', 'Exam')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -270,7 +264,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Export exam results as CSV (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/export', {
-      preHandler: [authenticateToken, requireRole('ADMIN')]
+      preHandler: [authenticate, requirePermission('export', 'ExamResult')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -291,11 +285,12 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get all attempts for an exam by current student
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/attempts', {
-      preHandler: authenticateToken
+      preHandler: authenticate
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
-        const userId = getUserIdFromRequest(request);
+        // @ts-ignore
+        const userId = request.userId;
         
         const attempts = await examService.getExamAttempts(examId, userId);
         
@@ -313,11 +308,12 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get specific attempt results for current student
      */
     fastify.get<{ Params: ExamAttemptParams }>('/exams/:examId/attempts/:attemptNumber', {
-      preHandler: authenticateToken
+      preHandler: authenticate
     }, async (request, reply) => {
       try {
         const { examId, attemptNumber } = request.params;
-        const userId = getUserIdFromRequest(request);
+        // @ts-ignore
+        const userId = request.userId;
         const attemptNum = parseInt(attemptNumber, 10);
         
         if (isNaN(attemptNum) || attemptNum < 1) {
@@ -343,7 +339,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get specific attempt results for a student (Admin only)
      */
     fastify.get<{ Params: ExamUserAttemptParams }>('/exams/:examId/attempts/:userId/:attemptNumber', {
-      preHandler: [authenticateToken, requireRole('ADMIN')]
+      preHandler: [authenticate, requirePermission('read', 'ExamResult')]
     }, async (request, reply) => {
       try {
         const { examId, userId, attemptNumber } = request.params;
@@ -372,7 +368,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get all results for a specific exam (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/all-results', {
-      preHandler: [authenticateToken, requireRole('ADMIN')]
+      preHandler: [authenticate, requirePermission('read', 'ExamResult')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -393,7 +389,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get exam info and statistics (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/info-stats', {
-      preHandler: [authenticateToken, requireRole('ADMIN')]
+      preHandler: [authenticate, requirePermission('read', 'ExamStat')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -414,7 +410,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get student info and statistics (Admin only)
      */
     fastify.get<{ Params: UserParams }>('/students/:userId/info-stats', {
-      preHandler: [authenticateToken, requireRole('ADMIN')]
+      preHandler: [authenticate, requirePermission('read', 'StudentStat')]
     }, async (request, reply) => {
       try {
         const { userId } = request.params;
@@ -433,4 +429,4 @@ export async function gradingRoutes(fastify: FastifyInstance) {
   }, { prefix: '/api/grading' });
 }
 
-export default gradingRoutes; 
+export default gradingRoutes;

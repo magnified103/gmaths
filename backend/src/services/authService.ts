@@ -1,23 +1,15 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { PrismaClient, User, UserRole } from '@prisma/client';
+import { User, Role } from '@prisma/client';
+import { prisma } from '../utils/db';
 import { checkUserExists, throwIfUserExists } from '../utils/userHelpers';
-
-const prisma = new PrismaClient();
-
-interface JWTPayload {
-  userId: string;
-  email: string;
-  role: UserRole;
-}
 
 interface AuthResponse {
   user: {
     id: string;
     username: string;
     email: string;
-    role: UserRole;
+    roles: Role[];
     emailVerified: boolean;
   };
   token: string;
@@ -55,53 +47,6 @@ export async function comparePassword(password: string, hashedPassword: string):
 }
 
 /**
- * Generate a JWT token for authenticated user.
- * @param user - User data for token payload.
- * @returns JWT token string.
- */
-export function generateToken(user: Pick<User, 'id' | 'email' | 'role'>): string {
-  const payload: JWTPayload = {
-    userId: user.id,
-    email: user.email,
-    role: user.role
-  };
-
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is not configured');
-  }
-
-  return jwt.sign(payload, secret, {
-    expiresIn: '24h',
-    issuer: 'gmaths-backend',
-    audience: 'gmaths-frontend'
-  });
-}
-
-/**
- * Verify and decode a JWT token.
- * @param token - JWT token to verify.
- * @returns Decoded token payload or null if invalid.
- */
-export function verifyToken(token: string): JWTPayload | null {
-  try {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET environment variable is not configured');
-    }
-
-    const decoded = jwt.verify(token, secret, {
-      issuer: 'gmaths-backend',
-      audience: 'gmaths-frontend'
-    }) as JWTPayload;
-
-    return decoded;
-  } catch (error) {
-    return null;
-  }
-}
-
-/**
  * Generate a secure random token for email verification or password reset.
  * @returns 32-byte random token as hex string.
  */
@@ -115,7 +60,7 @@ export function generateSecureToken(): string {
  * @param data - User registration data.
  * @returns Promise resolving to user data and token.
  */
-export async function registerUser(data: RegisterData): Promise<AuthResponse> {
+export async function registerUser(data: RegisterData): Promise<string> {
   // Check if user already exists using centralized helper
   const existenceCheck = await checkUserExists(data.email, data.username);
   throwIfUserExists(existenceCheck);
@@ -124,33 +69,24 @@ export async function registerUser(data: RegisterData): Promise<AuthResponse> {
   const hashedPassword = await hashPassword(data.password);
   const emailVerificationToken = generateSecureToken();
 
-  // Create user with STUDENT role (security: prevent admin creation via registration)
   const user = await prisma.user.create({
     data: {
       username: data.username,
       email: data.email,
       password: hashedPassword,
-      role: UserRole.STUDENT, // Explicitly set to STUDENT for security
-      emailVerificationToken
+      emailVerificationToken,
+      roles: {
+        connect: [
+          { slug: 'student' }
+        ]
+      }
+    },
+    include: {
+      roles: true
     }
   });
 
-  // Generate JWT token
-  const token = generateToken(user);
-
-  // TODO: Send email verification email
-  // This will be implemented when email service is added
-
-  return {
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      emailVerified: user.emailVerified
-    },
-    token
-  };
+  return user.id;
 }
 
 /**
@@ -158,10 +94,13 @@ export async function registerUser(data: RegisterData): Promise<AuthResponse> {
  * @param data - Login credentials.
  * @returns Promise resolving to user data and token.
  */
-export async function loginUser(data: LoginData): Promise<AuthResponse> {
+export async function loginUser(data: LoginData): Promise<any> {
   // Find user by email
   const user = await prisma.user.findUnique({
-    where: { email: data.email }
+    where: { email: data.email },
+    include: {
+      roles: true,
+    },
   });
 
   if (!user) {
@@ -180,19 +119,13 @@ export async function loginUser(data: LoginData): Promise<AuthResponse> {
     data: { lastLoginAt: new Date() }
   });
 
-  // Generate JWT token
-  const token = generateToken(user);
-
   return {
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      emailVerified: user.emailVerified
-    },
-    token
-  };
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    roles: user.roles.map(role => role.slug),
+    emailVerified: user.emailVerified,
+  }
 }
 
 /**
@@ -291,19 +224,18 @@ export async function resetPassword(token: string, newPassword: string): Promise
  * @param userId - User ID.
  * @returns Promise resolving to user data or null.
  */
-export async function getUserById(userId: string): Promise<Pick<User, 'id' | 'username' | 'email' | 'role' | 'emailVerified'> | null> {
-  const user = await prisma.user.findUnique({
+export async function getUserById(userId: string): Promise<(User & { roles: string[] }) | null> {
+  const result = await prisma.user.findUnique({
     where: { id: userId },
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      role: true,
-      emailVerified: true
-    }
+    include: {
+      roles: true,
+    },
   });
-
-  return user;
+  if (!result) return null;
+  return {
+    ...result,
+    roles: result.roles.map(role => role.slug),
+  }
 }
 
 /**
@@ -315,49 +247,41 @@ export async function getUserById(userId: string): Promise<Pick<User, 'id' | 'us
  * @returns Promise resolving to created user data.
  */
 export async function createUser(
-  username: string, 
-  email: string, 
-  password: string, 
-  role: UserRole = UserRole.STUDENT
-): Promise<Pick<User, 'id' | 'username' | 'email' | 'role' | 'emailVerified' | 'createdAt' | 'updatedAt' | 'lastLoginAt'>> {
-  // Check if user already exists using centralized helper
+  username: string,
+  email: string,
+  password: string,
+  roleName: string = 'student'
+): Promise<User> {
   const existenceCheck = await checkUserExists(email, username);
   throwIfUserExists(existenceCheck);
 
-  // Hash password
   const hashedPassword = await hashPassword(password);
   const emailVerificationToken = generateSecureToken();
 
-  // Create user
-  const user = await prisma.user.create({
+  return prisma.user.create({
     data: {
       username,
       email,
       password: hashedPassword,
-      role,
-      emailVerificationToken
+      emailVerificationToken,
+      roles: {
+        connect: {
+          slug: roleName,
+        }
+      },
     },
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      role: true,
-      emailVerified: true,
-      createdAt: true,
-      updatedAt: true,
-      lastLoginAt: true
-    }
+    include: {
+      roles: true,
+    },
   });
-
-  return user;
 }
 
 /**
  * Interface for user list filters
  */
-interface UserFilters {
+export interface UserFilters {
   search?: string;
-  role: 'all' | 'student' | 'admin';
+  role?: string; // Role name instead of enum
   emailVerified: 'all' | 'verified' | 'unverified';
   sortBy: 'username' | 'email' | 'createdAt' | 'lastLoginAt';
   sortOrder: 'asc' | 'desc';
@@ -369,7 +293,7 @@ interface UserFilters {
  * Interface for user list response
  */
 interface UserListResponse {
-  users: Array<Pick<User, 'id' | 'username' | 'email' | 'role' | 'emailVerified' | 'createdAt' | 'updatedAt' | 'lastLoginAt'>>;
+  users: (User & { roles: Role[] })[];
   total: number;
   page: number;
   limit: number;
@@ -396,8 +320,12 @@ export async function getUserList(filters: UserFilters): Promise<UserListRespons
   }
 
   // Role filter
-  if (role !== 'all') {
-    where.role = role.toUpperCase();
+  if (role) {
+    where.roles = {
+      some: {
+        slug: role, // Changed from name to slug
+      },
+    };
   }
 
   // Email verification filter
@@ -411,19 +339,12 @@ export async function getUserList(filters: UserFilters): Promise<UserListRespons
   // Get users with pagination
   const users = await prisma.user.findMany({
     where,
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      role: true,
-      emailVerified: true,
-      createdAt: true,
-      updatedAt: true,
-      lastLoginAt: true
+    include: {
+      roles: true,
     },
     orderBy: { [sortBy]: sortOrder },
     skip: (page - 1) * limit,
-    take: limit
+    take: limit,
   });
 
   return {
@@ -439,10 +360,10 @@ export async function getUserList(filters: UserFilters): Promise<UserListRespons
  * Interface for user update data
  */
 interface UserUpdateData {
-  username: string;
-  email: string;
-  role: UserRole;
-  emailVerified: boolean;
+  username?: string;
+  email?: string;
+  roleNames?: string[];
+  emailVerified?: boolean;
 }
 
 /**
@@ -452,47 +373,46 @@ interface UserUpdateData {
  * @returns Promise resolving to updated user data or null if not found.
  */
 export async function updateUser(
-  userId: string, 
+  userId: string,
   data: UserUpdateData
-): Promise<Pick<User, 'id' | 'username' | 'email' | 'role' | 'emailVerified' | 'createdAt' | 'updatedAt' | 'lastLoginAt'> | null> {
-  // Check if another user already uses the email/username using centralized helper
-  const existenceCheck = await checkUserExists(data.email, data.username, userId);
-  
-  if (existenceCheck.exists) {
-    if (existenceCheck.conflictField === 'email') {
-      throw new Error('Email đã được sử dụng bởi người dùng khác');
-    }
-    if (existenceCheck.conflictField === 'username') {
-      throw new Error('Tên đăng nhập đã được sử dụng bởi người dùng khác');
+): Promise<(User & { roles: Role[] }) | null> {
+  if (data.email || data.username) {
+    const existenceCheck = await checkUserExists(data.email || '', data.username || '', userId);
+    if (existenceCheck.exists) {
+      throw new Error(`${existenceCheck.conflictField} is already in use.`);
     }
   }
 
-  // Update user
-  try {
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        username: data.username,
-        email: data.email,
-        role: data.role,
-        emailVerified: data.emailVerified
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        role: true,
-        emailVerified: true,
-        createdAt: true,
-        updatedAt: true,
-        lastLoginAt: true
-      }
-    });
+  const updateData: any = {
+    username: data.username,
+    email: data.email,
+    emailVerified: data.emailVerified,
+  };
 
-    return user;
-  } catch (error) {
-    // Handle case where user doesn't exist
-    return null;
+  if (data.roleNames) {
+    const roles = await prisma.role.findMany({
+      where: {
+        slug: { in: data.roleNames }, // Changed from name to slug
+      },
+    });
+    updateData.roles = {
+      set: roles.map(role => ({ id: role.id })),
+    };
+  }
+
+  try {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      include: {
+        roles: true,
+      },
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') { // Prisma error code for record not found
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -511,4 +431,4 @@ export async function deleteUser(userId: string): Promise<boolean> {
     // Handle case where user doesn't exist
     return false;
   }
-} 
+}

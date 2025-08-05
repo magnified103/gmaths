@@ -1,5 +1,19 @@
 import { FastifyReply } from 'fastify';
 import { ZodError } from 'zod';
+import {
+	getReasonPhrase,
+} from 'http-status-codes';
+
+export class CustomError extends Error {
+  statusCode: number;
+  error: string;
+
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.error = getReasonPhrase(statusCode);
+    this.statusCode = statusCode;
+  }
+}
 
 /**
  * Standard error response interface
@@ -41,6 +55,15 @@ export function handleRouteError(error: any, reply: FastifyReply, context?: stri
   if (error instanceof ZodError) {
     const formattedError = formatValidationError(error);
     return reply.status(400).send(formattedError);
+  }
+
+  if (error instanceof CustomError) {
+    // Handle Fastify specific errors
+    return reply.status(error.statusCode).send({
+      error: error.name,
+      message: error.message,
+      statusCode: error.statusCode
+    });
   }
 
   // Check for custom status code first

@@ -3,7 +3,7 @@
  * Provides CRUD operations with validation and scheduling logic
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import type {
   CreateExamRequest,
@@ -30,8 +30,7 @@ import type {
 } from '../types/exam';
 import GradingService from './gradingService';
 import { ExamSessionService } from './examSessionService';
-
-const prisma = new PrismaClient();
+import { prisma } from '../utils/db';
 
 /**
  * Exam service class with all business logic
@@ -2411,35 +2410,52 @@ export class ExamService {
     // Get all users with exam statistics
     const users = await prisma.user.findMany({
       where: {
-        role: 'STUDENT'
+        roles: {
+          some: {
+            name: 'STUDENT'
+          }
+        }
       },
       select: {
         id: true,
         username: true,
         email: true,
         createdAt: true,
-        lastLoginAt: true,
-        examSubmissions: {
-          where: {
+        lastLoginAt: true
+      }
+    });
+
+    const userIds = users.map(u => u.id);
+    const submissions = await prisma.examSubmission.findMany({
+        where: {
+            userId: { in: userIds },
             gradedAt: { not: null }
-          },
-          select: {
+        },
+        select: {
+            userId: true,
             score: true,
             totalPoints: true,
             percentage: true,
             passed: true,
             submittedAt: true
-          }
         }
-      }
     });
 
+    const submissionsByUser = submissions.reduce((acc, sub) => {
+        if (!acc[sub.userId]) {
+            acc[sub.userId] = [];
+        }
+        acc[sub.userId].push(sub);
+        return acc;
+    }, {} as Record<string, typeof submissions>);
+
+
     return users.map(user => {
-      const submissions = user.examSubmissions;
-      const totalExams = submissions.length;
-      const passedExams = submissions.filter(s => s.passed).length;
-      const averageScore = totalExams > 0 
-        ? submissions.reduce((sum, s) => sum + (s.percentage || 0), 0) / totalExams 
+      const userSubmissions = submissionsByUser[user.id] || [];
+      const totalExams = userSubmissions.length;
+      const passedExams = userSubmissions.filter(s => s.passed).length;
+      const averageScore = totalExams > 0
+        ? userSubmissions.reduce((sum, s) => sum + (s.percentage || 0), 0) / totalExams
         : 0;
 
       // Determine performance level
@@ -2740,4 +2756,4 @@ export class ExamService {
       }
     };
   }
-} 
+}

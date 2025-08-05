@@ -5,7 +5,7 @@
 
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { questionService } from '../services/questionService';
-import { authenticateToken, requireRole } from '../utils/authMiddleware';
+import { authenticate, requirePermission } from '../utils/authMiddleware';
 import type {
   CreateQuestionRequest,
   UpdateQuestionRequest,
@@ -43,29 +43,6 @@ interface TagParams {
 }
 
 /**
- * Extracts user ID from authenticated request
- * @param request - Fastify request object
- * @returns User ID string
- */
-function getUserIdFromRequest(request: FastifyRequest): string {
-  if (!request.user || !request.user.id) {
-    throw new Error('User not authenticated');
-  }
-  return request.user.id;
-}
-
-/**
- * Checks if user has admin role
- * @param request - Fastify request object
- * @returns True if user is admin
- */
-function requireAdminRole(request: FastifyRequest): void {
-  if (!request.user || request.user.role !== 'ADMIN') {
-    throw new Error('Admin access required');
-  }
-}
-
-/**
  * Question routes registration
  * @param fastify - Fastify instance
  */
@@ -75,7 +52,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Get paginated list of questions with filtering
    */
   fastify.get<{ Querystring: QuestionListQuery }>('/', {
-    preHandler: authenticateToken
+    preHandler: authenticate
   }, async (request, reply) => {
     try {
       console.log('Question route accessed with query:', request.query);
@@ -138,7 +115,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Get a single question by ID
    */
   fastify.get<{ Params: QuestionParams }>('/:id', {
-    preHandler: authenticateToken
+    preHandler: authenticate
   }, async (request, reply) => {
     try {
       const { id } = request.params;
@@ -168,10 +145,11 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Create a new question (Admin only)
    */
   fastify.post<{ Body: CreateQuestionRequest }>('/', {
-    preHandler: [authenticateToken, requireRole('ADMIN')]
+    preHandler: [authenticate, requirePermission('create', 'Question')]
   }, async (request, reply) => {
     try {
-      const userId = getUserIdFromRequest(request);
+      // @ts-ignore
+      const userId = request.userId;
       
       const question = await questionService.createQuestion(request.body, userId);
 
@@ -194,10 +172,11 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Update an existing question (Admin only)
    */
   fastify.put<{ Params: QuestionParams; Body: UpdateQuestionRequest }>('/:id', {
-    preHandler: [authenticateToken, requireRole('ADMIN')]
+    preHandler: [authenticate, requirePermission('update', 'Question')]
   }, async (request, reply) => {
     try {
-      const userId = getUserIdFromRequest(request);
+      // @ts-ignore
+      const userId = request.userId;
       const { id } = request.params;
 
       const updateData = { ...request.body, id };
@@ -231,10 +210,11 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Soft delete a question (Admin only)
    */
   fastify.delete<{ Params: QuestionParams }>('/:id', {
-    preHandler: [authenticateToken, requireRole('ADMIN')]
+    preHandler: [authenticate, requirePermission('delete', 'Question')]
   }, async (request, reply) => {
     try {
-      const userId = getUserIdFromRequest(request);
+      // @ts-ignore
+      const userId = request.userId;
       const { id } = request.params;
 
       await questionService.deleteQuestion(id, userId);
@@ -266,7 +246,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Get all question categories
    */
   fastify.get('/categories', {
-    preHandler: authenticateToken
+    preHandler: authenticate
   }, async (request, reply) => {
     try {
       const categories = await questionService.getCategories();
@@ -288,7 +268,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Create a new question category (Admin only)
    */
   fastify.post<{ Body: CreateCategoryRequest }>('/categories', {
-    preHandler: [authenticateToken, requireRole('ADMIN')]
+    preHandler: [authenticate, requirePermission('create', 'Category')]
   }, async (request, reply) => {
     try {
       const category = await questionService.createCategory(request.body);
@@ -312,7 +292,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Get all question tags
    */
   fastify.get('/tags', {
-    preHandler: authenticateToken
+    preHandler: authenticate
   }, async (request, reply) => {
     try {
       const tags = await questionService.getTags();
@@ -334,7 +314,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Create a new question tag (Admin only)
    */
   fastify.post<{ Body: CreateTagRequest }>('/tags', {
-    preHandler: [authenticateToken, requireRole('ADMIN')]
+    preHandler: [authenticate, requirePermission('create', 'Tag')]
   }, async (request, reply) => {
     try {
       const tag = await questionService.createTag(request.body);
@@ -359,7 +339,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * TODO: Implement in future step
    */
   fastify.post('/bulk-import', {
-    preHandler: [authenticateToken, requireRole('ADMIN')]
+    preHandler: [authenticate, requirePermission('import', 'Question')]
   }, async (request, reply) => {
     try {
       reply.code(501).send({
@@ -380,7 +360,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * TODO: Implement in future step
    */
   fastify.get('/export', {
-    preHandler: [authenticateToken, requireRole('ADMIN')]
+    preHandler: [authenticate, requirePermission('export', 'Question')]
   }, async (request, reply) => {
     try {
       reply.code(501).send({
@@ -394,4 +374,4 @@ export async function questionRoutes(fastify: FastifyInstance) {
       });
     }
   });
-} 
+}

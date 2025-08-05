@@ -77,7 +77,8 @@ export const authAPI = {
         id: response.user.id,
         email: response.user.email,
         username: response.user.username,
-        role: response.user.role,
+        roles: [],
+        role: response.user.roles.includes('staff') ? 'ADMIN' : 'STUDENT', // TODO: use actual roles
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -107,7 +108,8 @@ export const authAPI = {
         id: response.user.id,
         email: response.user.email,
         username: response.user.username,
-        role: response.user.role,
+        roles: [],
+        role: response.user.roles.includes('staff') ? 'ADMIN' : 'STUDENT', // TODO: use actual roles
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -179,7 +181,8 @@ export const authAPI = {
         id: response.user.id,
         email: response.user.email,
         username: response.user.username,
-        role: response.user.role,
+        roles: [],
+        role: response.user.roles.includes('staff') ? 'ADMIN' : 'STUDENT', // TODO: use actual roles
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

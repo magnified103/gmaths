@@ -6,7 +6,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { ExamService } from '../services/examService';
 import { ExamSessionService } from '../services/examSessionService';
-import { authenticateToken, requireRole } from '../utils/authMiddleware';
+import { authenticate, requirePermission } from '../utils/authMiddleware';
 import type {
   CreateExamRequest,
   UpdateExamRequest,
@@ -17,7 +17,6 @@ import type {
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { handleRouteError, successResponse } from '../utils/errorHandler';
-import { UserRole } from '@prisma/client';
 
 // Initialize exam service
 const examService = new ExamService();
@@ -132,10 +131,12 @@ function getUserIdFromRequest(request: FastifyRequest): string {
 export async function examRoutes(fastify: FastifyInstance) {
   // Apply authentication to all routes
   await fastify.register(async function (fastify) {
-    fastify.addHook('preHandler', authenticateToken);
+    fastify.addHook('preHandler', authenticate);
 
     // Session management routes
-    fastify.patch<{ Params: SessionParams; Body: any }>('/exam-sessions/:sessionId', async (request, reply) => {
+    fastify.patch<{ Params: SessionParams; Body: any }>('/exam-sessions/:sessionId', {
+        preHandler: [authenticate, requirePermission('update', 'ExamSession')]
+    }, async (request, reply) => {
       try {
         const { sessionId } = request.params;
         const parsedData = sessionUpdateSchema.parse(request.body);
@@ -165,7 +166,9 @@ export async function examRoutes(fastify: FastifyInstance) {
       }
     });
 
-    fastify.get<{ Params: SessionParams }>('/exam-sessions/:sessionId', async (request, reply) => {
+    fastify.get<{ Params: SessionParams }>('/exam-sessions/:sessionId', {
+        preHandler: [authenticate, requirePermission('read', 'ExamSession')]
+    }, async (request, reply) => {
       try {
         const { sessionId } = request.params;
         
@@ -190,7 +193,9 @@ export async function examRoutes(fastify: FastifyInstance) {
       }
     });
 
-    fastify.post<{ Params: SessionParams; Body: any }>('/exam-sessions/:sessionId/sync', async (request, reply) => {
+    fastify.post<{ Params: SessionParams; Body: any }>('/exam-sessions/:sessionId/sync', {
+        preHandler: [authenticate, requirePermission('update', 'ExamSession')]
+    }, async (request, reply) => {
       try {
         const { sessionId } = request.params;
         const parsedData = sessionUpdateSchema.parse(request.body);
@@ -215,7 +220,7 @@ export async function examRoutes(fastify: FastifyInstance) {
 
     // Exam CRUD routes (admin only)
     fastify.post<{ Body: CreateExamRequest }>('/exams', {
-      preHandler: requireRole(UserRole.ADMIN)
+      preHandler: [authenticate, requirePermission('create', 'Exam')]
     }, async (request, reply) => {
       try {
         const examData = createExamSchema.parse(request.body);
@@ -229,7 +234,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.get<{ Querystring: ExamListQuery }>('/exams', {
-      preHandler: requireRole(UserRole.ADMIN)
+      preHandler: [authenticate, requirePermission('read', 'Exam')]
     }, async (request, reply) => {
       try {
         const { 
@@ -284,7 +289,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.put<{ Params: ExamParams; Body: UpdateExamRequest }>('/exams/:id', {
-      preHandler: requireRole(UserRole.ADMIN)
+      preHandler: [authenticate, requirePermission('update', 'Exam')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);
@@ -299,7 +304,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.delete<{ Params: ExamParams }>('/exams/:id', {
-      preHandler: requireRole(UserRole.ADMIN)
+      preHandler: [authenticate, requirePermission('delete', 'Exam')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);
@@ -313,7 +318,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.patch<{ Params: ExamParams }>('/exams/:id/publish', {
-      preHandler: requireRole(UserRole.ADMIN)
+      preHandler: [authenticate, requirePermission('publish', 'Exam')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);
@@ -327,7 +332,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.patch<{ Params: ExamParams }>('/exams/:id/archive', {
-      preHandler: requireRole(UserRole.ADMIN)
+      preHandler: [authenticate, requirePermission('archive', 'Exam')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);
@@ -341,7 +346,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.post<{ Params: ExamParams; Body: DuplicateExamBody }>('/exams/:id/duplicate', {
-      preHandler: requireRole(UserRole.ADMIN)
+      preHandler: [authenticate, requirePermission('duplicate', 'Exam')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);
@@ -476,4 +481,4 @@ export async function examRoutes(fastify: FastifyInstance) {
       }
     });
   });
-} 
+}

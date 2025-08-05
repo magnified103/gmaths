@@ -1,10 +1,10 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { UserRole, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { createUser, getUserList, getUserById, updateUser, deleteUser } from '../services/authService';
 import { processBulkUserImport, generateCSVTemplate } from '../services/csvService';
 import { ExamService } from '../services/examService';
-import { authenticateToken, requireRole } from '../utils/authMiddleware';
+import { requirePermission } from '../utils/authMiddleware';
 import { handleRouteError, successResponse } from '../utils/errorHandler';
 
 // Initialize prisma client and exam service for admin summaries
@@ -18,17 +18,17 @@ const adminUserCreateSchema = z.object({
   username: z.string().min(3).max(50),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['STUDENT', 'ADMIN']),
+  roleName: z.string(),
 });
 
 /**
  * User update schema for admin use
  */
 const adminUserUpdateSchema = z.object({
-  username: z.string().min(3).max(50),
-  email: z.string().email(),
-  role: z.enum(['STUDENT', 'ADMIN']),
-  emailVerified: z.boolean(),
+  username: z.string().min(3).max(50).optional(),
+  email: z.string().email().optional(),
+  roleNames: z.array(z.string()).optional(),
+  emailVerified: z.boolean().optional(),
 });
 
 /**
@@ -36,7 +36,7 @@ const adminUserUpdateSchema = z.object({
  */
 const userFiltersSchema = z.object({
   search: z.string().optional(),
-  role: z.enum(['all', 'student', 'admin']).default('all'),
+  role: z.string().optional(),
   emailVerified: z.enum(['all', 'verified', 'unverified']).default('all'),
   sortBy: z.enum(['username', 'email', 'createdAt', 'lastLoginAt']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
@@ -44,12 +44,6 @@ const userFiltersSchema = z.object({
   limit: z.string().transform(val => Math.min(parseInt(val, 10), 100)).default('20'),
 });
 
-/**
- * Maps string role to UserRole enum.
- */
-function mapStringToUserRole(roleString: 'STUDENT' | 'ADMIN'): UserRole {
-  return UserRole[roleString];
-}
 
 /**
  * Admin routes for user management.
@@ -60,12 +54,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/users - Get paginated list of users with filtering
    */
   fastify.get('/admin/users', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('User:Read')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const filters = userFiltersSchema.parse(request.query);
       const result = await getUserList(filters);
-      
+
       return reply.send(successResponse(result, 'Danh sách người dùng'));
     } catch (error) {
       return handleRouteError(error, reply, 'Get User List');
@@ -76,7 +70,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/users/:id - Get user by ID
    */
   fastify.get('/admin/users/:id', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('User:Read')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
@@ -96,12 +90,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * POST /admin/users - Create a new user
    */
   fastify.post('/admin/users', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('User:Create')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const userData = adminUserCreateSchema.parse(request.body);
-      const userRole = mapStringToUserRole(userData.role);
-      const user = await createUser(userData.username, userData.email, userData.password, userRole);
+      const user = await createUser(userData.username, userData.email, userData.password, userData.roleName);
       
       return reply.status(201).send(successResponse(user, 'Tạo người dùng thành công', 201));
     } catch (error) {
@@ -113,20 +106,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * PUT /admin/users/:id - Update user
    */
   fastify.put('/admin/users/:id', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('User:Update')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const userData = adminUserUpdateSchema.parse(request.body);
       
-      const updateData = {
-        username: userData.username,
-        email: userData.email,
-        role: mapStringToUserRole(userData.role),
-        emailVerified: userData.emailVerified,
-      };
-      
-      const user = await updateUser(id, updateData);
+      const user = await updateUser(id, userData);
       
       if (!user) {
         throw new Error('Không tìm thấy người dùng');
@@ -142,7 +128,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * DELETE /admin/users/:id - Delete user
    */
   fastify.delete('/admin/users/:id', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('User:Delete')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
@@ -162,7 +148,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * POST /admin/users/import - Bulk import users from CSV
    */
   fastify.post('/admin/users/import', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('User:Read', 'User:Create', 'User:Update')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = await request.file();
@@ -199,7 +185,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/users/template - Download CSV template
    */
   fastify.get('/admin/users/template', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('User:Read', 'User:Create', 'User:Update')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const csvContent = generateCSVTemplate();
@@ -217,7 +203,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/exam-summaries - Get exam summaries for admin dashboard
    */
   fastify.get('/admin/exam-summaries', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('ExamSummary:Read')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const examSummaries = await examService.getExamSummariesForAdmin();
@@ -232,7 +218,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/student-summaries - Get student summaries for admin dashboard
    */
   fastify.get('/admin/student-summaries', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('StudentSummary:Read')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const studentSummaries = await examService.getStudentSummariesForAdmin();
@@ -247,7 +233,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/dashboard-stats - Get comprehensive dashboard statistics
    */
   fastify.get('/admin/dashboard-stats', {
-    preHandler: [authenticateToken, requireRole(UserRole.ADMIN)]
+    preHandler: requirePermission('DashboardStat:Read')
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       // Get user count
@@ -288,4 +274,4 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return handleRouteError(error, reply, 'Get Dashboard Stats');
     }
   });
-} 
+}

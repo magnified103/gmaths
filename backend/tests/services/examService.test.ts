@@ -11,7 +11,7 @@ import type {
 } from '../../src/types/exam';
 
 // Mock Prisma client
-const mockPrisma = {
+var mockPrisma = {
   exam: {
     create: jest.fn(),
     findUnique: jest.fn(),

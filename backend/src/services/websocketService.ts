@@ -5,8 +5,8 @@
 
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { createClient, RedisClientType } from 'redis';
-import { verifyToken } from './authService';
-import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import { prisma } from '../utils/db';
 
 interface TimerSession {
   examId: string;
@@ -76,14 +76,18 @@ export class WebSocketService {
           return next(new Error('No authentication token provided'));
         }
 
-        const payload = verifyToken(token);
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+          return next(new Error('JWT_SECRET environment variable is not configured'));
+        }
+
+        const payload = jwt.verify(token, secret) as { userId: string };
         if (!payload) {
           return next(new Error('Invalid authentication token'));
         }
 
         // Attach user info to socket
         (socket as any).userId = payload.userId;
-        (socket as any).userRole = payload.role;
         
         next();
       } catch (error) {
@@ -173,8 +177,6 @@ export class WebSocketService {
       } else {
         // Try to get exam session data from database as fallback
         try {
-          const prisma = new PrismaClient();
-          
           const examSession = await prisma.examSession.findFirst({
             where: {
               examId,
@@ -396,8 +398,6 @@ export class WebSocketService {
     if (!session) {
       // If no WebSocket timer session exists, try to get exam session data from database
       try {
-        const prisma = new PrismaClient();
-        
         const examSession = await prisma.examSession.findFirst({
           where: {
             examId,
@@ -511,4 +511,4 @@ export class WebSocketService {
 
     console.log('🧹 WebSocket service cleanup completed');
   }
-} 
+}

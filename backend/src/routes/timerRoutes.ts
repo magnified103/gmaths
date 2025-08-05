@@ -4,7 +4,7 @@
  */
 
 import { FastifyInstance, FastifyRequest } from 'fastify';
-import { authenticateToken } from '../utils/authMiddleware';
+import { authenticate } from '../utils/authMiddleware';
 import { WebSocketService } from '../services/websocketService';
 
 interface TimerSyncQuery {
@@ -22,11 +22,12 @@ export async function timerRoutes(fastify: FastifyInstance, websocketService: We
    * Get server time synchronization data
    */
   fastify.get<{ Querystring: TimerSyncQuery }>('/sync', {
-    preHandler: authenticateToken
+    preHandler: authenticate
   }, async (request, reply) => {
     try {
       const { examId } = request.query;
-      const userId = request.user?.id;
+      // @ts-ignore
+      const userId = request.userId;
 
       if (!userId) {
         return reply.code(401).send({
@@ -67,7 +68,7 @@ export async function timerRoutes(fastify: FastifyInstance, websocketService: We
    * Get timer service status
    */
   fastify.get('/status', {
-    preHandler: authenticateToken
+    preHandler: authenticate
   }, async (request, reply) => {
     try {
       reply.send({
@@ -85,4 +86,4 @@ export async function timerRoutes(fastify: FastifyInstance, websocketService: We
       });
     }
   });
-} 
+}

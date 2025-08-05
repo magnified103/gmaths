@@ -12,6 +12,7 @@ export interface User {
   id: string;
   email: string;
   username: string;
+  roles: string[];
   role: UserRole; // Now matches backend
   createdAt: string;
   updatedAt: string;

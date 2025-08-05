@@ -3,7 +3,8 @@
  * Provides CRUD operations with validation and LaTeX processing
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../utils/db';
 import type {
   CreateQuestionRequest,
   UpdateQuestionRequest,
@@ -18,8 +19,6 @@ import type {
   QuestionTypeEnum,
   DifficultyEnum,
 } from '../types/questions';
-
-const prisma = new PrismaClient();
 
 /**
  * Question service class with all business logic

@@ -1,137 +1,45 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { verifyToken, getUserById } from '../services/authService';
-import { UserRole } from '@prisma/client';
+import { fastify, FastifyRequest, FastifyReply, FastifyInstance, HookHandlerDoneFunction } from 'fastify';
+import { hasPermission } from '../services/permissionService';
+import { CustomError, handleRouteError } from './errorHandler';
 
-// Extend FastifyRequest to include user data
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: {
-      id: string;
-      username: string;
-      email: string;
-      role: UserRole;
-      emailVerified: boolean;
-    };
-  }
-}
 
-/**
- * Extract JWT token from Authorization header.
- * @param request - Fastify request object.
- * @returns JWT token string or null if not found.
- */
-function extractToken(request: FastifyRequest): string | null {
-  const authHeader = request.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  
-  return authHeader.substring(7); // Remove 'Bearer ' prefix
-}
-
-/**
- * Authentication middleware that verifies JWT token and loads user data.
- * @param request - Fastify request object.
- * @param reply - Fastify reply object.
- */
-export async function authenticateToken(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+export async function verifyToken(this: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
   try {
-    const token = extractToken(request);
-    
-    if (!token) {
-      return reply.status(401).send({
-        error: 'Unauthorized',
-        message: 'Token không được cung cấp',
-        statusCode: 401
-      });
-    }
-
-    const decoded = verifyToken(token);
-    
-    if (!decoded) {
-      return reply.status(401).send({
-        error: 'Unauthorized',
-        message: 'Token không hợp lệ',
-        statusCode: 401
-      });
-    }
-
-    // Load current user data
-    const user = await getUserById(decoded.userId);
-    
-    if (!user) {
-      return reply.status(401).send({
-        error: 'Unauthorized',
-        message: 'Người dùng không tồn tại',
-        statusCode: 401
-      });
-    }
-
-    // Attach user to request object
-    request.user = user;
-  } catch (error) {
-    return reply.status(500).send({
-      error: 'Internal Server Error',
-      message: 'Lỗi xác thực token',
-      statusCode: 500
-    });
+    const token = this.jwt.lookupToken(request);
+    this.jwt.verify(token);
+    const { userId } = this.jwt.decode(token) as any;
+    // @ts-ignore
+    request.userId = userId;
+  } catch (err) {
+    throw new CustomError("Invalid token", 401);
   }
 }
 
-/**
- * Authorization middleware that checks if user has required role.
- * @param requiredRole - Minimum required user role.
- * @returns Middleware function.
- */
-export function requireRole(requiredRole: UserRole) {
-  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    // Ensure user is authenticated first
-    if (!request.user) {
-      return reply.status(401).send({
-        error: 'Unauthorized',
-        message: 'Yêu cầu đăng nhập',
-        statusCode: 401
-      });
+export async function authenticate(this: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
+  try {
+    await verifyToken.apply(this, [request, reply]);
+  } catch (err) {}
+};
+
+export async function requireLogin(this: FastifyInstance, request: FastifyRequest, reply: FastifyReply
+) {
+  await verifyToken.apply(this, [request, reply]);
+}
+
+export function requirePermission(...permissions: string[]) {
+  return async function(this: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
+    try {
+      await verifyToken.apply(this, [request, reply]);
+    } catch (err) {
+      return handleRouteError(err, reply, 'requirePermission');
     }
 
-    // Check if user has required role
-    if (requiredRole === UserRole.ADMIN && request.user.role !== UserRole.ADMIN) {
-      return reply.status(403).send({
-        error: 'Forbidden',
-        message: 'Không có quyền truy cập',
-        statusCode: 403
-      });
+    // @ts-ignore
+    const promises = permissions.map(perm => hasPermission(request.userId, perm));
+    const results = await Promise.all(promises);
+    const hasAllPermissions = results.every((result) => result);
+    if (!hasAllPermissions) {
+      return handleRouteError(new CustomError("Permission denied", 403), reply);
     }
   };
-}
-
-/**
- * Optional authentication middleware that loads user if token is present but doesn't require it.
- * @param request - Fastify request object.
- * @param reply - Fastify reply object.
- */
-export async function optionalAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  try {
-    const token = extractToken(request);
-    
-    if (!token) {
-      return; // No token provided, continue without user
-    }
-
-    const decoded = verifyToken(token);
-    
-    if (!decoded) {
-      return; // Invalid token, continue without user
-    }
-
-    // Load current user data
-    const user = await getUserById(decoded.userId);
-    
-    if (user) {
-      request.user = user;
-    }
-  } catch (error) {
-    // Ignore errors in optional auth, continue without user
-  }
-} 
+};

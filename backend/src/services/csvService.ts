@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { UserRole } from '@prisma/client';
 import { createUser } from './authService';
 import { csvUserSchema, CSVUserInput } from '../utils/validation';
 
@@ -213,7 +212,7 @@ export async function processBulkUserImport(
 
       try {
         // Try to create the user with STUDENT role (security requirement)
-        await createUser(user.username, user.email, user.password, UserRole.STUDENT);
+        await createUser(user.username, user.email, user.password, 'STUDENT');
         result.successCount++;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
@@ -294,4 +293,4 @@ export function generateCSVTemplate(): string {
   }
 
   return lines.join('\n');
-} 
+}

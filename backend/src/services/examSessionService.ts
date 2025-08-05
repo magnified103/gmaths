@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/db';
 import { ExamAnswer } from '../types/exam';
-
-const prisma = new PrismaClient();
 
 export interface ExamSessionData {
   id: string;
