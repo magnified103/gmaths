@@ -39,6 +39,8 @@
     "@fastify/jwt": "^9.1.0",
     "@fastify/multipart": "^9.0.3",
     "@fastify/rate-limit": "^10.3.0",
+    "@fastify/swagger": "^9.5.1",
+    "@fastify/swagger-ui": "^5.2.3",
     "@prisma/client": "^6.8.2",
     "@types/redis": "^4.0.11",
     "bcrypt": "^6.0.0",

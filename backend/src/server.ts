@@ -3,6 +3,8 @@ import cors from '@fastify/cors';
 import formbody from '@fastify/formbody';
 import multipart from '@fastify/multipart';
 import jwt from '@fastify/jwt';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import { Server as SocketIOServer } from 'socket.io';
 import { authRoutes } from './routes/authRoutes';
 import { adminRoutes } from './routes/adminRoutes';
@@ -11,6 +13,7 @@ import { examRoutes } from './routes/examRoutes';
 import { timerRoutes } from './routes/timerRoutes';
 import { gradingRoutes } from './routes/gradingRoutes';
 import { WebSocketService } from './services/websocketService';
+import { errorResponseSchema, listResponseSchema, singleObjectResponseSchema } from './schemas/common'; // Import common schemas
 
 const fastify = Fastify({
   logger: {
@@ -25,6 +28,59 @@ let websocketService: WebSocketService;
  * Register plugins for CORS, form handling, and file uploads.
  */
 async function registerPlugins(): Promise<void> {
+  // Register common schemas
+  fastify.addSchema(errorResponseSchema);
+  fastify.addSchema(listResponseSchema);
+  fastify.addSchema(singleObjectResponseSchema);
+
+  // Register Swagger
+  await fastify.register(swagger, {
+    swagger: {
+      info: {
+        title: 'GMATHS Education API',
+        description: 'API documentation for the GMATHS Online Testing Platform backend.',
+        version: '1.0.0'
+      },
+      externalDocs: {
+        url: 'https://swagger.io',
+        description: 'Find more info here'
+      },
+      host: 'localhost:3000', // Explicitly set host for local development
+      schemes: ['http'], // Explicitly set scheme to http for local development
+      consumes: ['application/json'],
+      produces: ['application/json'],
+      tags: [
+        { name: 'Auth', description: 'User authentication related endpoints' },
+        { name: 'Admin', description: 'Admin panel and user management' },
+        { name: 'Questions', description: 'Question bank management' },
+        { name: 'Exams', description: 'Exam creation, management, and taking' },
+        { name: 'Grading', description: 'Exam grading and results' },
+        { name: 'Timer', description: 'Real-time timer synchronization' }
+      ],
+      securityDefinitions: {
+        BearerAuth: {
+          type: 'apiKey',
+          name: 'Authorization',
+          in: 'header',
+          description: 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"'
+        }
+      },
+      security: [
+        {
+          BearerAuth: []
+        }
+      ]
+    }
+  });
+
+  await fastify.register(swaggerUi, {
+    routePrefix: '/documentation',
+    uiConfig: {
+      docExpansion: 'full',
+      deepLinking: false
+    },
+  });
+
   // Simplified CORS configuration for development
   const corsOptions = process.env.NODE_ENV === 'production' 
     ? {
@@ -80,7 +136,23 @@ function setupWebSocket(): void {
  */
 async function registerRoutes(): Promise<void> {
   // Health check endpoint
-  fastify.get('/health', async (request, reply) => {
+  fastify.get('/health', {
+    schema: {
+      summary: 'Health Check',
+      description: 'Checks the health of the backend service.',
+      tags: ['System'],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', example: 'ok' },
+            timestamp: { type: 'string', format: 'date-time' },
+            service: { type: 'string', example: 'gmaths-backend' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     return { 
       status: 'ok', 
       timestamp: new Date().toISOString(),
