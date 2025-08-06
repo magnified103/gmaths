@@ -14,6 +14,8 @@ import { timerRoutes } from './routes/timerRoutes';
 import { gradingRoutes } from './routes/gradingRoutes';
 import { WebSocketService } from './services/websocketService';
 import { errorResponseSchema, listResponseSchema, singleObjectResponseSchema } from './schemas/common'; // Import common schemas
+import { userSchema } from './schemas/user'; // Import user schema
+import { roleSchema } from './schemas/role'; // Import role schema
 
 const fastify = Fastify({
   logger: {
@@ -32,6 +34,8 @@ async function registerPlugins(): Promise<void> {
   fastify.addSchema(errorResponseSchema);
   fastify.addSchema(listResponseSchema);
   fastify.addSchema(singleObjectResponseSchema);
+  fastify.addSchema(userSchema); // Register user schema
+  fastify.addSchema(roleSchema); // Register role schema
 
   // Register Swagger
   await fastify.register(swagger, {
