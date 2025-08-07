@@ -11,6 +11,8 @@ import {
   PasswordResetInput,
   EmailVerificationInput
 } from '../utils/validation';
+import { userSchema } from '../schemas/user';
+import { loginJsonSchema } from '../schemas/auth';
 import {
   getUserById,
   registerUser,
@@ -45,7 +47,22 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // User login
-  fastify.post('/auth/login', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/auth/login', {
+    schema: {
+      body: loginJsonSchema,
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            user: userSchema,
+            token: { type: 'string' }
+          },
+          required: ['user', 'token']
+        }
+      },
+      tags: ['Auth'],
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = loginSchema.parse(request.body) as LoginInput;
 

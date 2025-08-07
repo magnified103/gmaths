@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /**
  * Common JSON Schemas for API responses.
  * These schemas are registered globally with Fastify using fastify.addSchema()
@@ -39,6 +41,22 @@ export const errorResponseSchema = {
     }
   },
   required: ['code', 'message', 'errors']
+};
+
+/**
+ * Schema for validating a UUID parameter.
+ */
+export const UserIdParamSchema = z.object({
+  id: z.string().cuid('Invalid CUID format for user ID'),
+});
+
+export const UserIdParamJsonSchema = {
+  $id: 'UserIdParam',
+  type: 'object',
+  properties: {
+    id: { type: 'string', description: 'User ID (CUID)' }
+  },
+  required: ['id']
 };
 
 // --- Success Response Schemas ---

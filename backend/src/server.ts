@@ -16,6 +16,7 @@ import { WebSocketService } from './services/websocketService';
 import { errorResponseSchema, listResponseSchema, singleObjectResponseSchema } from './schemas/common'; // Import common schemas
 import { userSchema } from './schemas/user'; // Import user schema
 import { roleSchema } from './schemas/role'; // Import role schema
+import { loginJsonSchema } from './schemas/auth';
 
 const fastify = Fastify({
   logger: {
@@ -36,6 +37,7 @@ async function registerPlugins(): Promise<void> {
   fastify.addSchema(singleObjectResponseSchema);
   fastify.addSchema(userSchema); // Register user schema
   fastify.addSchema(roleSchema); // Register role schema
+  fastify.addSchema(loginJsonSchema);
 
   // Register Swagger
   await fastify.register(swagger, {

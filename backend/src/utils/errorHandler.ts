@@ -130,10 +130,5 @@ export function handleRouteError(error: any, reply: FastifyReply, context?: stri
  * @param statusCode - HTTP status code (default: 200).
  */
 export function successResponse(data: any, message: string, statusCode: number = 200) {
-  return {
-    success: true,
-    message,
-    data,
-    statusCode
-  };
+  return data;
 } 

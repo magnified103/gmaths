@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { User, Role } from '@prisma/client';
+import { User as TUser } from '../schemas/user';
 import { prisma } from '../utils/db';
 import { checkUserExists, throwIfUserExists } from '../utils/userHelpers';
 
@@ -94,7 +95,7 @@ export async function registerUser(data: RegisterData): Promise<string> {
  * @param data - Login credentials.
  * @returns Promise resolving to user data and token.
  */
-export async function loginUser(data: LoginData): Promise<any> {
+export async function loginUser(data: LoginData): Promise<TUser> {
   // Find user by email
   const user = await prisma.user.findUnique({
     where: { email: data.email },

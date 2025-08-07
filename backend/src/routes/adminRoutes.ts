@@ -6,43 +6,12 @@ import { processBulkUserImport, generateCSVTemplate } from '../services/csvServi
 import { ExamService } from '../services/examService';
 import { requirePermission } from '../utils/authMiddleware';
 import { handleRouteError, successResponse } from '../utils/errorHandler';
+import { adminUserCreateSchema, adminUserUpdateSchema, userFiltersSchema } from '../schemas/user';
+import { UserIdParamJsonSchema } from '../schemas/common';
 
 // Initialize prisma client and exam service for admin summaries
 const prisma = new PrismaClient();
 const examService = new ExamService();
-
-/**
- * User creation schema for admin use (allows role specification)
- */
-const adminUserCreateSchema = z.object({
-  username: z.string().min(3).max(50),
-  email: z.string().email(),
-  password: z.string().min(8),
-  roleName: z.string(),
-});
-
-/**
- * User update schema for admin use
- */
-const adminUserUpdateSchema = z.object({
-  username: z.string().min(3).max(50).optional(),
-  email: z.string().email().optional(),
-  roleNames: z.array(z.string()).optional(),
-  emailVerified: z.boolean().optional(),
-});
-
-/**
- * User filters and pagination schema
- */
-const userFiltersSchema = z.object({
-  search: z.string().optional(),
-  role: z.string().optional(),
-  emailVerified: z.enum(['all', 'verified', 'unverified']).default('all'),
-  sortBy: z.enum(['username', 'email', 'createdAt', 'lastLoginAt']).default('createdAt'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-  page: z.string().transform(val => parseInt(val, 10)).default('1'),
-  limit: z.string().transform(val => Math.min(parseInt(val, 10), 100)).default('20'),
-});
 
 
 /**
@@ -70,7 +39,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/users/:id - Get user by ID
    */
   fastify.get('/admin/users/:id', {
-    preHandler: requirePermission('User:Read')
+    preHandler: requirePermission('User:Read'),
+    schema: {
+      params: UserIdParamJsonSchema,
+      tags: ['Admin'],
+    }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
