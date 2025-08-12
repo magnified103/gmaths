@@ -1,18 +1,13 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
+import { ZodError } from 'zod';
 import {
-  registerSchema,
-  loginSchema,
-  passwordResetRequestSchema,
-  passwordResetSchema,
-  emailVerificationSchema,
-  RegisterInput,
-  LoginInput,
-  PasswordResetRequestInput,
-  PasswordResetInput,
-  EmailVerificationInput
-} from '../utils/validation';
+  registerDataSchema,
+  loginDataSchema,
+  authResponseSchema,
+} from '../schemas/auth';
 import { userSchema } from '../schemas/user';
-import { loginJsonSchema } from '../schemas/auth';
 import {
   getUserById,
   registerUser,
@@ -21,6 +16,14 @@ import {
   resetPassword,
   verifyEmail
 } from '../services/authService';
+import {
+  passwordResetRequestSchema,
+  passwordResetSchema,
+  emailVerificationSchema,
+  PasswordResetRequestInput,
+  PasswordResetInput,
+  EmailVerificationInput
+} from '../utils/validation';
 import { requireLogin } from '../utils/authMiddleware';
 import { handleRouteError, successResponse } from '../utils/errorHandler';
 
@@ -29,118 +32,148 @@ import { handleRouteError, successResponse } from '../utils/errorHandler';
  * @param fastify - Fastify application instance.
  */
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
-  // User registration
-  fastify.post('/auth/register', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const data = registerSchema.parse(request.body) as RegisterInput;
-      
-      const result = await registerUser({
-        username: data.username,
-        email: data.email,
-        password: data.password
-      });
+  const app = fastify.withTypeProvider<ZodTypeProvider>();
 
-      return reply.status(201).send(successResponse(result, 'Đăng ký thành công', 201));
+  // User registration
+  app.post('/auth/register', {
+    schema: {
+      body: registerDataSchema,
+      response: {
+        201: userSchema, // Assuming register returns the created user
+      },
+      tags: ['Auth'],
+      summary: 'Register a new user',
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const data = registerDataSchema.parse(request.body);
+
+      const userId = await registerUser(data);
+      const user = await getUserById(userId); // Fetch the full user object
+
+      return reply.status(201).send(user);
     } catch (error) {
       return handleRouteError(error, reply, 'User Registration');
     }
   });
 
   // User login
-  fastify.post('/auth/login', {
+  app.post('/auth/login', {
     schema: {
-      body: loginJsonSchema,
+      body: loginDataSchema,
       response: {
-        200: {
-          type: 'object',
-          properties: {
-            user: userSchema,
-            token: { type: 'string' }
-          },
-          required: ['user', 'token']
-        }
+        200: authResponseSchema,
       },
       tags: ['Auth'],
+      summary: 'Log in a user',
     },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const data = loginSchema.parse(request.body) as LoginInput;
+      const data = loginDataSchema.parse(request.body);
 
       const user = await loginUser(data);
       const token = await reply.jwtSign({ userId: user.id });
 
-      return reply.send(successResponse({
+      return reply.send({
         user: user,
         token,
-      }, 'Đăng nhập thành công'));
+      });
     } catch (error) {
       return handleRouteError(error, reply, 'User Login');
     }
   });
 
   // Password reset request
-  fastify.post('/auth/forgot-password', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/auth/forgot-password', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = passwordResetRequestSchema.parse(request.body) as PasswordResetRequestInput;
       
       const result = await requestPasswordReset(data.email);
 
-      return reply.send(successResponse(result, 'Nếu email tồn tại, liên kết đặt lại mật khẩu đã được gửi'));
+      return reply.send(result);
     } catch (error) {
       return handleRouteError(error, reply, 'Password Reset Request');
     }
   });
 
   // Password reset
-  fastify.post('/auth/reset-password', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/auth/reset-password', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = passwordResetSchema.parse(request.body) as PasswordResetInput;
       
       const result = await resetPassword(data.token, data.password);
 
-      return reply.send(successResponse(result, 'Mật khẩu đã được đặt lại thành công'));
+      return reply.send(result);
     } catch (error) {
       return handleRouteError(error, reply, 'Password Reset');
     }
   });
 
   // Email verification
-  fastify.post('/auth/verify-email', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/auth/verify-email', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = emailVerificationSchema.parse(request.body) as EmailVerificationInput;
       
       const result = await verifyEmail(data.token);
 
-      return reply.send(successResponse(result, 'Email đã được xác thực thành công'));
+      return reply.send(result);
     } catch (error) {
       return handleRouteError(error, reply, 'Email Verification');
     }
   });
 
   // Get current user (protected route)
-  fastify.get('/auth/me', {
-    preHandler: requireLogin
+  app.get('/auth/me', {
+    preHandler: requireLogin,
+    schema: {
+      tags: ['Auth'],
+      summary: 'Get current user profile',
+      description: 'Retrieves the profile information of the currently authenticated user.',
+      response: {
+        200: userSchema,
+      }
+    }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       // @ts-ignore
       const user = await getUserById(request.userId as string);
-      return reply.send(successResponse({ user }, 'Thông tin người dùng'));
+      return reply.send(user);
     } catch (error) {
       return handleRouteError(error, reply, 'Get Current User');
     }
   });
 
   // Logout (client-side token removal, but we can blacklist if needed later)
-  fastify.post('/auth/logout', {
-    preHandler: requireLogin
+  app.post('/auth/logout', {
+    preHandler: requireLogin,
+    schema: {
+      tags: ['Auth'],
+    }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       // For now, logout is handled client-side by removing the token
       // In the future, we could implement token blacklisting with Redis
       
-      return reply.send(successResponse({}, 'Đăng xuất thành công'));
+      return reply.send({});
     } catch (error) {
       return handleRouteError(error, reply, 'User Logout');
     }
+  });
+
+  app.setErrorHandler((error, request, reply) => {
+    if (hasZodFastifySchemaValidationErrors(error)) {
+      reply.status(400).send({
+        code: 400,
+        message: 'Validation Error',
+        errors: error.validation.map(err => ({
+          locationType: error.validationContext,
+          location: err.instancePath.substring(1),  // Remove leading slash
+          message: err.message,
+        })),
+      });
+      return;
+    }
+  
+   reply.send(error);
   });
 }

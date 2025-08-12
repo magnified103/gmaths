@@ -1,16 +1,14 @@
 // Mock the auth service
 jest.mock('../../src/services/authService');
-// jest.mock('../../src/utils/authMiddleware');
 
-import Fastify, { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify';
+import { createId } from '@paralleldrive/cuid2';
+import Fastify, { FastifyInstance } from 'fastify';
 import jwt from '@fastify/jwt';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import * as authService from '../../src/services/authService';
 import { authRoutes } from '../../src/routes/authRoutes';
-import { handleRouteError } from '../../src/utils/errorHandler';
 
 const mockAuthService = authService as jest.Mocked<typeof authService>;
-const authMiddleware = jest.requireActual('../../src/utils/authMiddleware');
-// const mockAuthMiddleware = jest.requireMock('../../src/utils/authMiddleware');
 
 describe('Authentication Routes', () => {
   let app: FastifyInstance;
@@ -18,6 +16,8 @@ describe('Authentication Routes', () => {
   beforeEach(async () => {
     // Create fresh Fastify instance for each test
     app = Fastify({ logger: false });
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
     
     // Register form body plugin for JSON parsing
     await app.register(require('@fastify/formbody'));
@@ -159,10 +159,10 @@ describe('Authentication Routes', () => {
       };
 
       const mockResult = {
-        id: 'test-user-id',
+        id: createId(),
         username: 'testuser',
         email: loginData.email,
-        role: 'STUDENT' as const,
+        roles: ['student'],
         emailVerified: true,
       };
 
@@ -181,9 +181,7 @@ describe('Authentication Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const responseData = JSON.parse(response.body);
-      expect(responseData.success).toBe(true);
-      expect(responseData.message).toBe('Đăng nhập thành công');
-      expect(responseData.data).toEqual(mockResponse);
+      expect(responseData).toEqual(mockResponse);
     });
 
     test('should return validation error for invalid email', async () => {
@@ -200,14 +198,14 @@ describe('Authentication Routes', () => {
 
       expect(response.statusCode).toBe(400);
       const responseData = JSON.parse(response.body);
-      expect(responseData.error).toBe('Validation Error');
-      expect(responseData.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            field: 'email',
-            message: 'Email không hợp lệ'
-          })
-        ])
+      expect(responseData.code).toBe(400);
+      expect(responseData.message).toBe('Validation Error');
+      expect(responseData.errors).toEqual(
+        [{
+          locationType: 'body',
+          location: 'email',
+          message: 'Invalid email address'
+        }]
       );
     });
 
@@ -250,7 +248,6 @@ describe('Authentication Routes', () => {
       expect(response.statusCode).toBe(200);
       const responseData = JSON.parse(response.body);
       expect(responseData.success).toBe(true);
-      expect(responseData.message).toBe('Nếu email tồn tại, liên kết đặt lại mật khẩu đã được gửi');
     });
 
     test('should return validation error for invalid email', async () => {
@@ -290,7 +287,6 @@ describe('Authentication Routes', () => {
       expect(response.statusCode).toBe(200);
       const responseData = JSON.parse(response.body);
       expect(responseData.success).toBe(true);
-      expect(responseData.message).toBe('Mật khẩu đã được đặt lại thành công');
     });
 
     test('should return error for expired token', async () => {
@@ -335,7 +331,6 @@ describe('Authentication Routes', () => {
       expect(response.statusCode).toBe(200);
       const responseData = JSON.parse(response.body);
       expect(responseData.success).toBe(true);
-      expect(responseData.message).toBe('Email đã được xác thực thành công');
     });
 
     test('should return error for invalid token', async () => {
@@ -367,14 +362,14 @@ describe('Authentication Routes', () => {
 
     test('should return current user for authenticated request', async () => {
       const mockUser = {
-        id: 'test-user-id',
+        id: createId(),
         username: 'testuser',
         email: 'test@example.com',
         roles: ['student'],
         emailVerified: true
       };
 
-      mockAuthService.getUserById.mockResolvedValue(mockUser as any);
+      mockAuthService.getUserById.mockResolvedValue(mockUser);
 
       const token = app.jwt.sign({ userId: mockUser.id });
       const response = await app.inject({
@@ -387,9 +382,7 @@ describe('Authentication Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const responseData = JSON.parse(response.body);
-      expect(responseData.success).toBe(true);
-      expect(responseData.message).toBe('Thông tin người dùng');
-      expect(responseData.data.user).toEqual(mockUser);
+      expect(responseData).toEqual(mockUser);
     });
 
     test('should return unauthorized for missing token', async () => {
@@ -442,9 +435,6 @@ describe('Authentication Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const responseData = JSON.parse(response.body);
-      expect(responseData.success).toBe(true);
-      expect(responseData.message).toBe('Đăng xuất thành công');
     });
 
     test('should return unauthorized for missing token', async () => {

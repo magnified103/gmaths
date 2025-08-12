@@ -2,30 +2,9 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { User, Role } from '@prisma/client';
 import { User as TUser } from '../schemas/user';
+import { RegisterData, LoginData } from '../schemas/auth'; // Import Zod types
 import { prisma } from '../utils/db';
 import { checkUserExists, throwIfUserExists } from '../utils/userHelpers';
-
-interface AuthResponse {
-  user: {
-    id: string;
-    username: string;
-    email: string;
-    roles: Role[];
-    emailVerified: boolean;
-  };
-  token: string;
-}
-
-interface RegisterData {
-  username: string;
-  email: string;
-  password: string;
-}
-
-interface LoginData {
-  email: string;
-  password: string;
-}
 
 /**
  * Hash a password using bcrypt with salt rounds.
@@ -126,6 +105,9 @@ export async function loginUser(data: LoginData): Promise<TUser> {
     email: user.email,
     roles: user.roles.map(role => role.slug),
     emailVerified: user.emailVerified,
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString(),
+    lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
   }
 }
 
@@ -225,7 +207,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
  * @param userId - User ID.
  * @returns Promise resolving to user data or null.
  */
-export async function getUserById(userId: string): Promise<(User & { roles: string[] }) | null> {
+export async function getUserById(userId: string): Promise<TUser | null> {
   const result = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -234,8 +216,14 @@ export async function getUserById(userId: string): Promise<(User & { roles: stri
   });
   if (!result) return null;
   return {
-    ...result,
+    id: result.id,
+    username: result.username,
+    email: result.email,
+    emailVerified: result.emailVerified,
     roles: result.roles.map(role => role.slug),
+    createdAt: result.createdAt.toISOString(),
+    updatedAt: result.updatedAt.toISOString(),
+    lastLoginAt: result.lastLoginAt ? result.lastLoginAt.toISOString() : null,
   }
 }
 
@@ -277,29 +265,7 @@ export async function createUser(
   });
 }
 
-/**
- * Interface for user list filters
- */
-export interface UserFilters {
-  search?: string;
-  role?: string; // Role name instead of enum
-  emailVerified: 'all' | 'verified' | 'unverified';
-  sortBy: 'username' | 'email' | 'createdAt' | 'lastLoginAt';
-  sortOrder: 'asc' | 'desc';
-  page: number;
-  limit: number;
-}
-
-/**
- * Interface for user list response
- */
-interface UserListResponse {
-  users: (User & { roles: Role[] })[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
+import { UserFilters, UserListResponse, AdminUserUpdateData } from '../schemas/user'; // Import Zod types
 
 /**
  * Get paginated list of users with filtering (admin function).
@@ -349,23 +315,19 @@ export async function getUserList(filters: UserFilters): Promise<UserListRespons
   });
 
   return {
-    users,
-    total,
-    page,
-    limit,
+    items: users.map(user => ({
+      ...user,
+      roles: user.roles.map(role => role.slug),
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+      lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+    })),
+    pageIndex: page,
+    itemsPerPage: limit,
     totalPages: Math.ceil(total / limit)
   };
 }
 
-/**
- * Interface for user update data
- */
-interface UserUpdateData {
-  username?: string;
-  email?: string;
-  roleNames?: string[];
-  emailVerified?: boolean;
-}
 
 /**
  * Update user data (admin function).
@@ -375,8 +337,8 @@ interface UserUpdateData {
  */
 export async function updateUser(
   userId: string,
-  data: UserUpdateData
-): Promise<(User & { roles: Role[] }) | null> {
+  data: AdminUserUpdateData
+): Promise<TUser | null> {
   if (data.email || data.username) {
     const existenceCheck = await checkUserExists(data.email || '', data.username || '', userId);
     if (existenceCheck.exists) {
@@ -384,11 +346,11 @@ export async function updateUser(
     }
   }
 
-  const updateData: any = {
-    username: data.username,
-    email: data.email,
-    emailVerified: data.emailVerified,
-  };
+  const updateData: any = {};
+
+  if (data.username !== undefined) updateData.username = data.username;
+  if (data.email !== undefined) updateData.email = data.email;
+  if (data.emailVerified !== undefined) updateData.emailVerified = data.emailVerified;
 
   if (data.roleNames) {
     const roles = await prisma.role.findMany({
@@ -402,13 +364,24 @@ export async function updateUser(
   }
 
   try {
-    return await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
       include: {
         roles: true,
       },
     });
+
+    return {
+      id: updatedUser.id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      emailVerified: updatedUser.emailVerified,
+      roles: updatedUser.roles.map(role => role.slug),
+      createdAt: updatedUser.createdAt.toISOString(),
+      updatedAt: updatedUser.updatedAt.toISOString(),
+      lastLoginAt: updatedUser.lastLoginAt ? updatedUser.lastLoginAt.toISOString() : null,
+    };
   } catch (error: any) {
     if (error.code === 'P2025') { // Prisma error code for record not found
       return null;

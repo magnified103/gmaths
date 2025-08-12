@@ -33,9 +33,9 @@ When an endpoint returns a single resource or object, the response body will dir
 
 ### 1.2. List Response
 
-When an endpoint returns a collection or list of resources, the response body will contain a root attribute named `"items"`, which is an array containing the objects.
+When an endpoint returns a collection or list of resources, the response body will contain a root attribute named `"items"`, which is an array containing the objects, along with pagination metadata.
 
-**Example: `GET /admin/users` (returns a list of user objects)**
+**Example: `GET /admin/users` (returns a list of user objects with pagination)**
 
 ```json
 {
@@ -64,8 +64,20 @@ When an endpoint returns a collection or list of resources, the response body wi
       "updatedAt": "2025-08-02T11:00:00.000Z",
       "lastLoginAt": null
     }
-  ]
+  ],
+  "itemsPerPage": 10,
+  "pageIndex": 0,
+  "totalPages": 5
 }
+```
+
+**Field Descriptions for List Response:**
+
+*   `items` (array): An array containing the requested resources or objects.
+*   `itemsPerPage` (number): The maximum number of items returned per page.
+*   `pageIndex` (number): The current page number (0-indexed).
+*   `totalPages` (number, nullable): The total number of pages available. This can be `null` if the total number of pages is not applicable or cannot be determined (e.g., for infinite scroll or very large datasets).
+
 ```
 
 ## 2. Failed Responses (HTTP Status Codes: 4xx Client Errors, 5xx Server Errors)

@@ -1,15 +1,12 @@
+import { z } from 'zod';
+
 /**
- * JSON Schema for the Role object.
- * This schema is registered globally with Fastify using fastify.addSchema()
- * and can be referenced using $ref in other schemas.
+ * Zod schema for the Role object.
  */
-export const roleSchema = {
-  $id: 'Role', // Unique ID for referencing
-  type: 'object',
-  properties: {
-    slug: { type: 'string', description: 'Unique slug for the role (e.g., "admin", "student")' },
-    name: { type: 'string', description: 'Display name of the role' },
-    description: { type: 'string', nullable: true, description: 'Description of the role' }
-  },
-  required: ['slug', 'name']
-};
+export const roleSchema = z.object({
+  slug: z.string().describe('Unique slug for the role (e.g., "admin", "student")'),
+  name: z.string().describe('Display name of the role'),
+  description: z.string().nullable().optional().describe('Description of the role'),
+});
+
+export type Role = z.infer<typeof roleSchema>;

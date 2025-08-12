@@ -58,7 +58,7 @@ const sessionUpdateSchema = z.object({
     answer: z.any(),
     timeSpent: z.number().optional()
   })).optional(),
-  sessionData: z.record(z.any()).optional()
+  sessionData: z.record(z.string(), z.any()).optional()
 });
 
 const examSubmissionSchema = z.object({

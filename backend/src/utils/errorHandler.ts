@@ -30,8 +30,8 @@ export interface ErrorResponse {
  * @param error - Zod validation error.
  * @returns Formatted error object.
  */
-export function formatValidationError(error: ZodError): ErrorResponse {
-  const errors = error.errors.map(err => ({
+export function formatValidationError(error: ZodError): any {
+  const errors = error.issues.map(err => ({
     field: err.path.join('.'),
     message: err.message
   }));

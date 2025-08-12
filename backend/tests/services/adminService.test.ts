@@ -4,8 +4,8 @@ import {
   getUserList,
   updateUser,
   deleteUser,
-  UserFilters, // Import UserFilters
 } from '../../src/services/authService';
+import { UserFilters } from '../../src/schemas/user';
 import { seed as dbseed } from '../../prisma/seed';
 // No need to import PrismaClientKnownRequestError anymore as updateUser now returns null
 
@@ -82,12 +82,11 @@ describe('Admin Service Functions (from authService)', () => {
 
       const result = await getUserList(filters);
 
-      expect(result.users.length).toBe(2);
-      expect(result.total).toBe(3);
-      expect(result.page).toBe(1);
-      expect(result.limit).toBe(2);
+      expect(result.items.length).toBe(2);
+      expect(result.pageIndex).toBe(1);
+      expect(result.itemsPerPage).toBe(2);
       expect(result.totalPages).toBe(2);
-      expect(result.users[0].username).toBe('userC'); // Assuming desc order by createdAt
+      expect(result.items[0].username).toBe('userC'); // Assuming desc order by createdAt
     });
 
     test('should filter users by username search', async () => {
@@ -106,8 +105,8 @@ describe('Admin Service Functions (from authService)', () => {
 
       const result = await getUserList(filters);
 
-      expect(result.users.length).toBe(1);
-      expect(result.users[0].username).toBe('john.doe');
+      expect(result.items.length).toBe(1);
+      expect(result.items[0].username).toBe('john.doe');
     });
 
     test('should filter users by email search', async () => {
@@ -125,8 +124,8 @@ describe('Admin Service Functions (from authService)', () => {
 
       const result = await getUserList(filters);
 
-      expect(result.users.length).toBe(1);
-      expect(result.users[0].email).toBe('test1@example.com');
+      expect(result.items.length).toBe(1);
+      expect(result.items[0].email).toBe('test1@example.com');
     });
 
     test('should filter users by role', async () => {
@@ -145,9 +144,9 @@ describe('Admin Service Functions (from authService)', () => {
 
       const result = await getUserList(filters);
 
-      expect(result.users.length).toBe(1);
-      expect(result.users[0].username).toBe('superuser1');
-      expect(result.users[0].roles.some((role: any) => role.slug === 'superuser')).toBe(true);
+      expect(result.items.length).toBe(1);
+      expect(result.items[0].username).toBe('superuser1');
+      expect(result.items[0].roles).toContain('superuser');
     });
 
     test('should filter users by email verification status', async () => {
@@ -168,8 +167,8 @@ describe('Admin Service Functions (from authService)', () => {
         sortOrder: 'desc',
       } as UserFilters; // Explicitly cast to UserFilters
       const resultVerified = await getUserList(filtersVerified);
-      expect(resultVerified.users.length).toBe(1);
-      expect(resultVerified.users[0].email).toBe('verified@example.com');
+      expect(resultVerified.items.length).toBe(1);
+      expect(resultVerified.items[0].email).toBe('verified@example.com');
 
       const filtersUnverified = {
         emailVerified: 'unverified',
@@ -179,8 +178,8 @@ describe('Admin Service Functions (from authService)', () => {
         sortOrder: 'desc',
       } as UserFilters; // Explicitly cast to UserFilters
       const resultUnverified = await getUserList(filtersUnverified);
-      expect(resultUnverified.users.length).toBe(1);
-      expect(resultUnverified.users[0].email).toBe('unverified@example.com');
+      expect(resultUnverified.items.length).toBe(1);
+      expect(resultUnverified.items[0].email).toBe('unverified@example.com');
     });
 
     test('should sort users by username ascending', async () => {
@@ -198,10 +197,10 @@ describe('Admin Service Functions (from authService)', () => {
 
       const result = await getUserList(filters);
 
-      expect(result.users.length).toBe(3);
-      expect(result.users[0].username).toBe('apple');
-      expect(result.users[1].username).toBe('banana');
-      expect(result.users[2].username).toBe('zebra');
+      expect(result.items.length).toBe(3);
+      expect(result.items[0].username).toBe('apple');
+      expect(result.items[1].username).toBe('banana');
+      expect(result.items[2].username).toBe('zebra');
     });
 
     test('should sort users by email descending', async () => {
@@ -219,10 +218,10 @@ describe('Admin Service Functions (from authService)', () => {
 
       const result = await getUserList(filters);
 
-      expect(result.users.length).toBe(3);
-      expect(result.users[0].email).toBe('c@example.com');
-      expect(result.users[1].email).toBe('b@example.com');
-      expect(result.users[2].email).toBe('a@example.com');
+      expect(result.items.length).toBe(3);
+      expect(result.items[0].email).toBe('c@example.com');
+      expect(result.items[1].email).toBe('b@example.com');
+      expect(result.items[2].email).toBe('a@example.com');
     });
   });
 
@@ -257,8 +256,8 @@ describe('Admin Service Functions (from authService)', () => {
       const updatedUser: any = await updateUser(user.id, { roleNames: newRoles });
 
       expect(updatedUser).toBeDefined();
-      expect(updatedUser?.roles.some((role: any) => role.slug === 'superuser')).toBe(true);
-      expect(updatedUser?.roles.some((role: any) => role.slug === 'student')).toBe(false);
+      expect(updatedUser?.roles).toContain('superuser');
+      expect(updatedUser?.roles).not.toContain('student');
 
       const fetchedUser: any = await prisma.user.findUnique({
         where: { id: user.id },

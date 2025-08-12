@@ -16,8 +16,8 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "ts-node prisma/seed.ts",
-    "db:seed:prod": "node -r ts-node/register prisma/seed.ts",
+    "db:seed": "ts-node prisma/seed/index.ts",
+    "db:seed:prod": "node -r ts-node/register prisma/seed/index.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -46,19 +46,22 @@
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "fastify": "^5.3.3",
+    "fastify-type-provider-zod": "^5.0.3",
     "http-status-codes": "^2.3.0",
     "json-schema-to-ts": "^3.1.1",
     "jsonwebtoken": "^9.0.2",
     "prisma": "^6.8.2",
     "redis": "^5.5.5",
     "socket.io": "^4.8.1",
-    "zod": "^3.25.36"
+    "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@paralleldrive/cuid2": "^2.2.2",
     "@types/bcrypt": "^5.0.2",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.24",
+    "form-auto-content": "^3.2.1",
     "jest": "^29.7.0",
     "nodemon": "^3.1.10",
     "prismock": "^1.35.4",

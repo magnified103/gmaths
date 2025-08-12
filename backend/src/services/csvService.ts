@@ -141,7 +141,7 @@ function validateUserRow(user: CSVUserRow, rowNumber: number): BulkUploadError[]
     csvUserSchema.parse(user);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      for (const issue of error.errors) {
+      for (const issue of error.issues) {
         errors.push({
           row: rowNumber,
           field: issue.path.join('.'),

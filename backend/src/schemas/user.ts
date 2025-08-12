@@ -1,35 +1,23 @@
 import { z } from 'zod';
-import { FromSchema } from "json-schema-to-ts";
 
 /**
- * JSON Schema for the User object.
- * This schema is registered globally with Fastify using fastify.addSchema()
- * and can be referenced using $ref in route schemas.
+ * Zod schema for the User object.
  */
-export const userSchema = {
-  $id: 'User', // Unique ID for referencing
-  type: 'object',
-  properties: {
-    id: { type: 'string', format: 'uuid', description: 'Unique identifier of the user' },
-    username: { type: 'string', description: 'User\'s unique username' },
-    email: { type: 'string', format: 'email', description: 'User\'s email address' },
-    emailVerified: { type: 'boolean', description: 'Whether the user\'s email has been verified' },
-    roles: {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'The slugs of roles assigned to the user.'
-    },
-    createdAt: { type: 'string', format: 'date-time', description: 'Timestamp when the user was created' },
-    updatedAt: { type: 'string', format: 'date-time', description: 'Timestamp when the user was last updated' },
-    lastLoginAt: { type: 'string', format: 'date-time', nullable: true, description: 'Timestamp of the user\'s last login' }
-  },
-  required: ['id', 'username', 'email', 'emailVerified', 'roles']
-} as const;
+export const userSchema = z.object({
+  id: z.string().cuid2().describe('Unique identifier of the user'),
+  username: z.string().describe('User\'s unique username'),
+  email: z.string().email().describe('User\'s email address'),
+  emailVerified: z.boolean().describe('Whether the user\'s email has been verified'),
+  roles: z.array(z.string()).describe('The slugs of roles assigned to the user.'),
+  createdAt: z.string().datetime().describe('Timestamp when the user was created').optional(),
+  updatedAt: z.string().datetime().describe('Timestamp when the user was last updated').optional(),
+  lastLoginAt: z.string().datetime().nullable().describe('Timestamp of the user\'s last login').optional(),
+});
 
-export type User = FromSchema<typeof userSchema>;
+export type User = z.infer<typeof userSchema>;
 
 /**
- * User creation schema for admin use (allows role specification)
+ * Zod schema for user creation data (admin use, allows role specification).
  */
 export const adminUserCreateSchema = z.object({
   username: z.string().min(3).max(50),
@@ -38,18 +26,22 @@ export const adminUserCreateSchema = z.object({
   roleName: z.string(),
 });
 
+export type AdminUserCreateData = z.infer<typeof adminUserCreateSchema>;
+
 /**
- * User update schema for admin use
+ * Zod schema for user update data (admin use).
  */
 export const adminUserUpdateSchema = z.object({
   username: z.string().min(3).max(50).optional(),
   email: z.string().email().optional(),
-  roleNames: z.array(z.string()).optional(),
+  roleNames: z.array(z.string()).optional(), // Changed from 'roles' to 'roleNames' to match service
   emailVerified: z.boolean().optional(),
 });
 
+export type AdminUserUpdateData = z.infer<typeof adminUserUpdateSchema>;
+
 /**
- * User filters and pagination schema
+ * Zod schema for user filters and pagination.
  */
 export const userFiltersSchema = z.object({
   search: z.string().optional(),
@@ -57,6 +49,20 @@ export const userFiltersSchema = z.object({
   emailVerified: z.enum(['all', 'verified', 'unverified']).default('all'),
   sortBy: z.enum(['username', 'email', 'createdAt', 'lastLoginAt']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
-  page: z.string().transform(val => parseInt(val, 10)).default('1'),
-  limit: z.string().transform(val => Math.min(parseInt(val, 10), 100)).default('20'),
+  page: z.coerce.number().default(1),             // TODO: should we use coerce here?
+  limit: z.coerce.number().max(100).default(20),
 });
+
+export type UserFilters = z.infer<typeof userFiltersSchema>;
+
+/**
+ * Zod schema for user list response.
+ */
+export const userListResponseSchema = z.object({
+  items: z.array(userSchema),
+  pageIndex: z.number(),
+  itemsPerPage: z.number(),
+  totalPages: z.number().nullable(),
+});
+
+export type UserListResponse = z.infer<typeof userListResponseSchema>;

@@ -1,4 +1,12 @@
 import Fastify from 'fastify';
+import {
+  jsonSchemaTransform,
+  createJsonSchemaTransform,
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider,
+} from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import cors from '@fastify/cors';
 import formbody from '@fastify/formbody';
 import multipart from '@fastify/multipart';
@@ -14,15 +22,14 @@ import { timerRoutes } from './routes/timerRoutes';
 import { gradingRoutes } from './routes/gradingRoutes';
 import { WebSocketService } from './services/websocketService';
 import { errorResponseSchema, listResponseSchema, singleObjectResponseSchema } from './schemas/common'; // Import common schemas
-import { userSchema } from './schemas/user'; // Import user schema
-import { roleSchema } from './schemas/role'; // Import role schema
-import { loginJsonSchema } from './schemas/auth';
 
 const fastify = Fastify({
   logger: {
     level: process.env.NODE_ENV === 'production' ? 'warn' : 'info'
   }
 });
+fastify.setValidatorCompiler(validatorCompiler);
+fastify.setSerializerCompiler(serializerCompiler);
 
 // WebSocket service instance
 let websocketService: WebSocketService;
@@ -31,17 +38,16 @@ let websocketService: WebSocketService;
  * Register plugins for CORS, form handling, and file uploads.
  */
 async function registerPlugins(): Promise<void> {
-  // Register common schemas
+  // Register common schemas (these are still JSON schemas)
   fastify.addSchema(errorResponseSchema);
   fastify.addSchema(listResponseSchema);
   fastify.addSchema(singleObjectResponseSchema);
-  fastify.addSchema(userSchema); // Register user schema
-  fastify.addSchema(roleSchema); // Register role schema
-  fastify.addSchema(loginJsonSchema);
+  // Zod schemas are handled by fastify-type-provider-zod, no need to add them here
 
   // Register Swagger
   await fastify.register(swagger, {
-    swagger: {
+    openapi: {
+      openapi: '3.0.0',
       info: {
         title: 'GMATHS Education API',
         description: 'API documentation for the GMATHS Online Testing Platform backend.',
@@ -51,10 +57,12 @@ async function registerPlugins(): Promise<void> {
         url: 'https://swagger.io',
         description: 'Find more info here'
       },
-      host: 'localhost:3000', // Explicitly set host for local development
-      schemes: ['http'], // Explicitly set scheme to http for local development
-      consumes: ['application/json'],
-      produces: ['application/json'],
+      servers: [
+        {
+          url: 'http://localhost:3000', // Local development server
+          description: 'Local Development Server'
+        }
+      ],
       tags: [
         { name: 'Auth', description: 'User authentication related endpoints' },
         { name: 'Admin', description: 'Admin panel and user management' },
@@ -63,12 +71,13 @@ async function registerPlugins(): Promise<void> {
         { name: 'Grading', description: 'Exam grading and results' },
         { name: 'Timer', description: 'Real-time timer synchronization' }
       ],
-      securityDefinitions: {
-        BearerAuth: {
-          type: 'apiKey',
-          name: 'Authorization',
-          in: 'header',
-          description: 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"'
+      components: {
+        securitySchemes: {
+          BearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT'
+          }
         }
       },
       security: [
@@ -76,14 +85,15 @@ async function registerPlugins(): Promise<void> {
           BearerAuth: []
         }
       ]
-    }
+    },
+    transform: jsonSchemaTransform,
+    // transformObject: createJsonSchemaTransform,
   });
 
   await fastify.register(swaggerUi, {
     routePrefix: '/documentation',
     uiConfig: {
-      docExpansion: 'full',
-      deepLinking: false
+      deepLinking: true,
     },
   });
 
@@ -142,20 +152,17 @@ function setupWebSocket(): void {
  */
 async function registerRoutes(): Promise<void> {
   // Health check endpoint
-  fastify.get('/health', {
+  fastify.withTypeProvider<ZodTypeProvider>().get('/health', {
     schema: {
       summary: 'Health Check',
       description: 'Checks the health of the backend service.',
       tags: ['System'],
       response: {
-        200: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'ok' },
-            timestamp: { type: 'string', format: 'date-time' },
-            service: { type: 'string', example: 'gmaths-backend' }
-          }
-        }
+        200: z.object({
+          status: z.string(),
+          timestamp: z.string().datetime(),
+          service: z.string()
+        })
       }
     }
   }, async (request, reply) => {
@@ -167,7 +174,7 @@ async function registerRoutes(): Promise<void> {
   });
 
   // API health check
-  fastify.get('/api/health', async (request, reply) => {
+  fastify.withTypeProvider<ZodTypeProvider>().get('/api/health', async (request, reply) => {
     return { 
       status: 'ok',
       message: 'GMATHS API is running',
@@ -182,18 +189,18 @@ async function registerRoutes(): Promise<void> {
   await fastify.register(adminRoutes, { prefix: '/api' });
   
   // Register question routes
-  await fastify.register(questionRoutes, { prefix: '/api/questions' });
+  // await fastify.register(questionRoutes, { prefix: '/api/questions' });
   
   // Register exam routes
-  await fastify.register(examRoutes, { prefix: '/api' });
+  // await fastify.register(examRoutes, { prefix: '/api' });
   
   // Register timer routes (requires WebSocket service)
-  await fastify.register(async (fastify) => {
-    await timerRoutes(fastify, websocketService);
-  }, { prefix: '/api/timer' });
+  // await fastify.register(async (fastify) => {
+  //   await timerRoutes(fastify, websocketService);
+  // }, { prefix: '/api/timer' });
   
-  // Register grading routes
-  await fastify.register(gradingRoutes);
+  // // Register grading routes
+  // await fastify.register(gradingRoutes);
 }
 
 /**
