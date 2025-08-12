@@ -23,7 +23,7 @@ const ExamsRedirect: React.FC = () => {
   }
 
   // Redirect based on user role
-  if (isAdmin(user.role)) {
+  if (isAdmin(user)) {
     return <Navigate to="/admin/exams" replace />;
   } else {
     return <Navigate to="/student/exams" replace />;

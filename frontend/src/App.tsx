@@ -185,7 +185,7 @@ function App() {
             <Route 
               path="/admin" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <AdminDashboard />
                 </ProtectedRoute>
               } 
@@ -193,7 +193,7 @@ function App() {
             <Route 
               path="/admin/users" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <AdminPage />
                 </ProtectedRoute>
               } 
@@ -203,7 +203,7 @@ function App() {
             <Route 
               path="/admin/questions" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <QuestionsPage />
                 </ProtectedRoute>
               } 
@@ -213,7 +213,7 @@ function App() {
             <Route 
               path="/admin/exams" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <ExamListPage />
                 </ProtectedRoute>
               } 
@@ -221,7 +221,7 @@ function App() {
             <Route 
               path="/admin/exams/create" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <ExamBuilderPage />
                 </ProtectedRoute>
               } 
@@ -229,7 +229,7 @@ function App() {
             <Route 
               path="/admin/exams/:id/edit" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <ExamEditPage />
                 </ProtectedRoute>
               } 
@@ -239,7 +239,7 @@ function App() {
             <Route 
               path="/admin/results" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <AdminResultsPage />
                 </ProtectedRoute>
               } 
@@ -247,7 +247,7 @@ function App() {
             <Route 
               path="/admin/results/exams/:examId" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <ExamResultsManagementPage />
                 </ProtectedRoute>
               } 
@@ -255,7 +255,7 @@ function App() {
             <Route 
               path="/admin/results/students/:studentId" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <StudentResultsManagementPage />
                 </ProtectedRoute>
               } 
@@ -263,7 +263,7 @@ function App() {
             <Route 
               path="/admin/results/exams/:examId/students/:studentId/attempts/:attemptNumber" 
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredRole="staff">
                   <StudentExamAttemptResultPage />
                 </ProtectedRoute>
               } 

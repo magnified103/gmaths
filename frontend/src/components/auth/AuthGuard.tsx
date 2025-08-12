@@ -22,7 +22,7 @@ export default function AuthGuard({ children, redirectTo }: AuthGuardProps) {
 
   // If user is authenticated, redirect them away
   if (user) {
-    const defaultRedirect = isAdmin(user.role) ? '/admin' : '/';
+    const defaultRedirect = isAdmin(user) ? '/admin' : '/';
     return <Navigate to={redirectTo || defaultRedirect} replace />;
   }
 

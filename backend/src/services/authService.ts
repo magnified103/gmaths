@@ -287,7 +287,7 @@ export async function getUserList(filters: UserFilters): Promise<UserListRespons
   }
 
   // Role filter
-  if (role) {
+  if (role && role !== 'all') {
     where.roles = {
       some: {
         slug: role, // Changed from name to slug
@@ -296,7 +296,7 @@ export async function getUserList(filters: UserFilters): Promise<UserListRespons
   }
 
   // Email verification filter
-  if (emailVerified !== 'all') {
+  if (emailVerified && emailVerified !== 'all') {
     where.emailVerified = emailVerified === 'verified';
   }
 
@@ -324,7 +324,8 @@ export async function getUserList(filters: UserFilters): Promise<UserListRespons
     })),
     pageIndex: page,
     itemsPerPage: limit,
-    totalPages: Math.ceil(total / limit)
+    totalPages: Math.ceil(total / limit),
+    totalItems: total,
   };
 }
 

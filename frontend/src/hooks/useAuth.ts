@@ -26,7 +26,7 @@ export const useAuth = () => {
       queryClient.setQueryData(['auth', 'user'], data.user);
       
       // Navigate based on user role after login
-      if (isAdmin(data.user.role)) {
+      if (isAdmin(data.user)) {
         navigate('/admin');
       } else {
         navigate('/student/dashboard');
@@ -42,7 +42,7 @@ export const useAuth = () => {
       queryClient.setQueryData(['auth', 'user'], data.user);
       
       // Navigate based on user role after registration
-      if (isAdmin(data.user.role)) {
+      if (isAdmin(data.user)) {
         navigate('/admin');
       } else {
         navigate('/student/dashboard');

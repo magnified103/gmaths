@@ -24,11 +24,11 @@ const HomePage: React.FC = () => {
                     Xin chào, {user?.username}!
                   </h2>
                   <p className="text-sm text-gray-600">
-                    Vai trò: {user && isAdmin(user.role) ? 'Quản trị viên' : 'Học sinh'}
+                    Vai trò: {user && isAdmin(user) ? 'Quản trị viên' : 'Học sinh'}
                   </p>
                 </div>
                 <div className="flex space-x-4">
-                  {user && isAdmin(user.role) ? (
+                  {user && isAdmin(user) ? (
                     <Link
                       to="/admin"
                       className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
@@ -167,7 +167,7 @@ const HomePage: React.FC = () => {
                     Bạn đã đăng nhập thành công!
                   </div>
                   <div className="flex justify-center space-x-4">
-                    {user && isAdmin(user.role) ? (
+                    {user && isAdmin(user) ? (
                       <>
                         <Link to="/admin" className="btn-primary">
                           Khu vực quản trị

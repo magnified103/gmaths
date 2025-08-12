@@ -2,12 +2,11 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { isAdmin } from '../../api/auth';
-import type { DisplayRole } from '../../types/auth';
 import FullScreenLoader from '../ui/FullScreenLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: DisplayRole;
+  requiredRole: string;
   redirectTo?: string;
 }
 
@@ -37,8 +36,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Check role-based access if required
   if (requiredRole) {
-    const hasAccess = requiredRole === 'admin' ? isAdmin(user.role) : !isAdmin(user.role);
-    
+    const hasAccess = user.roles.includes(requiredRole);
+
     if (!hasAccess) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">

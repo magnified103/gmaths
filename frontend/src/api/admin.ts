@@ -66,15 +66,9 @@ export async function fetchUsers(
   if (!response.ok) {
     throw new Error(`Không thể tải danh sách người dùng: ${response.statusText}`);
   }
-  
+
   const result = await response.json();
-  
-  // Handle backend response format with success wrapper
-  if (result.success && result.data) {
-    return result.data;
-  }
-  
-  // Fallback if response is already in the expected format
+
   return result;
 }
 

@@ -28,7 +28,7 @@ interface QuestionFormProps {
 // Validation schema for question creation - supports all question types
 const questionSchema = z.object({
   type: z.enum(['multiple-choice', 'multiple-select', 'true-false', 'fill-blank', 'short-answer', 'essay'] as const, {
-    errorMap: () => ({ message: 'Vui lòng chọn loại câu hỏi' }),
+    message: 'Vui lòng chọn loại câu hỏi'
   }),
   content: z
     .string()
@@ -53,7 +53,7 @@ const questionSchema = z.object({
     .min(1, 'Vui lòng chọn chủ đề')
     .max(100, 'Tên chủ đề không được quá 100 ký tự'),
   difficulty: z.enum(['easy', 'medium', 'hard'], {
-    errorMap: () => ({ message: 'Vui lòng chọn độ khó' }),
+    message: 'Vui lòng chọn độ khó'
   }),
   // Optional image URL
   imageUrl: z
@@ -373,7 +373,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
     // Type-specific values
     switch (question.type) {
       case 'multiple-choice':
-      case 'multiple-select':
+      case 'multiple-select': {
         const mcOptions = typeData.options?.map((opt: any) => ({
           text: opt.text || '',
           isCorrect: opt.isCorrect || false,
@@ -388,6 +388,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
           ...baseValues,
           options: mcOptions,
         };
+      }
 
       case 'true-false':
         return {
@@ -545,7 +546,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
           replace([]); // Clear options array
           break;
           
-        case 'short-answer':
+        case 'short-answer': {
           // Clear all other fields
           setValue('options', undefined);
           setValue('correctAnswer', undefined);
@@ -562,7 +563,8 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
             setValue('acceptableAnswers', ['']);
           }
           break;
-          
+        }          
+
         case 'essay':
           // Clear all other fields
           setValue('options', undefined);

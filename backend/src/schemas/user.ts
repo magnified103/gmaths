@@ -63,6 +63,7 @@ export const userListResponseSchema = z.object({
   pageIndex: z.number(),
   itemsPerPage: z.number(),
   totalPages: z.number().nullable(),
+  totalItems: z.number().nullable(),
 });
 
 export type UserListResponse = z.infer<typeof userListResponseSchema>;

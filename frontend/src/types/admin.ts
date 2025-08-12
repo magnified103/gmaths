@@ -2,13 +2,11 @@
  * Admin-related TypeScript interfaces for user management
  */
 
-import type { UserRole, DisplayRole } from './auth';
-
 export interface UserListItem {
   id: string;
   username: string;
   email: string;
-  role: UserRole;
+  roles: string[];
   emailVerified: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -19,19 +17,19 @@ export interface UserCreateForm {
   username: string;
   email: string;
   password: string;
-  role: UserRole;
+  roles: string[];
 }
 
 export interface UserUpdateForm {
   username: string;
   email: string;
-  role: UserRole;
+  roles: string[];
   emailVerified: boolean;
 }
 
 export interface UserFilters {
   search: string;
-  role: 'all' | DisplayRole;
+  role: 'all' | 'student' | 'staff' | 'superuser';
   emailVerified: 'all' | 'verified' | 'unverified';
   sortBy: 'username' | 'email' | 'createdAt' | 'lastLoginAt';
   sortOrder: 'asc' | 'desc';
@@ -59,9 +57,9 @@ export interface CSVUserRow {
 }
 
 export interface UserListResponse {
-  users: UserListItem[];
-  total: number;
-  page: number;
-  limit: number;
+  items: UserListItem[];
+  pageIndex: number;
+  itemsPerPage: number;
   totalPages: number;
-} 
+  totalItems: number;
+}

@@ -23,7 +23,7 @@ const DashboardRedirect: React.FC = () => {
   }
 
   // Redirect based on user role
-  if (isAdmin(user.role)) {
+  if (isAdmin(user)) {
     return <Navigate to="/admin" replace />;
   } else {
     return <Navigate to="/student/dashboard" replace />;

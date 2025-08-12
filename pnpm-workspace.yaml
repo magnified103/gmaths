@@ -1,4 +1,11 @@
 packages:
-  - 'frontend'
-  - 'backend'
-  - 'e2e' 
+  - frontend
+  - backend
+  - e2e
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@tailwindcss/oxide'
+  - bcrypt
+  - esbuild
+  - prisma

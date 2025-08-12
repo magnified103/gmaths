@@ -17,7 +17,7 @@ import {
   ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import type { UserListItem, UserFilters } from '../../types/admin';
-import type { UserRole } from '../../types/auth';
+import type { User } from '../../types/auth';
 import { fetchUsers, deleteUser } from '../../api/admin';
 import { isAdmin } from '../../api/auth';
 
@@ -103,8 +103,8 @@ export default function UserList({ onCreateUser, onEditUser }: UserListProps) {
    * @param role - User role.
    * @returns Vietnamese role text.
    */
-  const getRoleText = (role: UserRole): string => {
-    return isAdmin(role) ? 'Quản trị' : 'Học sinh';
+  const getRoleText = (user: User): string => {
+    return isAdmin(user) ? 'Quản trị' : 'Học sinh';
   };
 
   return (
@@ -249,7 +249,7 @@ export default function UserList({ onCreateUser, onEditUser }: UserListProps) {
       )}
 
       {/* User Table */}
-      {data && data.users && Array.isArray(data.users) && (
+      {data && data.items && Array.isArray(data.items) && (
         <div className="mt-6 bg-white shadow overflow-hidden sm:rounded-md">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -276,7 +276,7 @@ export default function UserList({ onCreateUser, onEditUser }: UserListProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {data.users.map((user: UserListItem) => (
+                {data.items.map((user: UserListItem) => (
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
@@ -286,11 +286,11 @@ export default function UserList({ onCreateUser, onEditUser }: UserListProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        isAdmin(user.role)
+                        isAdmin(user)
                           ? 'bg-purple-100 text-purple-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}>
-                        {getRoleText(user.role)}
+                        {getRoleText(user)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -361,10 +361,10 @@ export default function UserList({ onCreateUser, onEditUser }: UserListProps) {
                     <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span>
                     {' '}đến{' '}
                     <span className="font-medium">
-                      {Math.min(currentPage * itemsPerPage, data.total)}
+                      {Math.min(currentPage * itemsPerPage, data.totalItems)}
                     </span>
                     {' '}trong tổng số{' '}
-                    <span className="font-medium">{data.total}</span>
+                    <span className="font-medium">{data.totalItems}</span>
                     {' '}kết quả
                   </p>
                 </div>
@@ -409,7 +409,7 @@ export default function UserList({ onCreateUser, onEditUser }: UserListProps) {
       )}
 
       {/* Empty State */}
-      {data && (!data.users || !Array.isArray(data.users) || data.users.length === 0) && (
+      {data && (!data.items || !Array.isArray(data.items) || data.items.length === 0) && (
         <div className="mt-6 text-center py-12 bg-white shadow rounded-lg">
           <div className="mx-auto h-12 w-12 text-gray-400">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">

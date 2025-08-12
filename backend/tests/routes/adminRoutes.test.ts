@@ -98,6 +98,7 @@ describe('Admin Routes', () => {
         pageIndex: 1,
         itemsPerPage: 10,
         totalPages: 1,
+        totalItems: 1,
       };
       (getUserList as jest.Mock).mockResolvedValue(mockUserListResponse);
 

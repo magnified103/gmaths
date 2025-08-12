@@ -1,7 +1,8 @@
 import React from 'react';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import type { UseFormRegister, FieldValues, Path } from 'react-hook-form';
 
-interface FormFieldProps {
+interface FormFieldProps<T extends FieldValues = FieldValues> {
   id: string;
   label: string;
   type?: 'text' | 'email' | 'password' | 'select';
@@ -12,19 +13,20 @@ interface FormFieldProps {
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   options?: { value: string; label: string }[];
+  multiple?: boolean;
   showPasswordToggle?: boolean;
   showPassword?: boolean;
   onTogglePassword?: () => void;
   disabled?: boolean;
   className?: string;
-  register?: any; // More flexible type for react-hook-form register function
+  register?: UseFormRegister<T>; // More flexible type for react-hook-form register function
 }
 
 /**
  * Reusable form field component with consistent styling and validation display.
  * Supports various input types including password toggle and select dropdown.
  */
-export default function FormField({
+export default function FormField<T extends FieldValues>({
   id,
   label,
   type = 'text',
@@ -35,13 +37,14 @@ export default function FormField({
   value,
   onChange,
   options,
+  multiple = false,
   showPasswordToggle = false,
   showPassword = false,
   onTogglePassword,
   disabled = false,
   className = '',
   register,
-}: FormFieldProps) {
+}: FormFieldProps<T>) {
   const renderInput = () => {
     const baseClasses = `
       w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
@@ -58,7 +61,8 @@ export default function FormField({
           onChange={onChange}
           disabled={disabled}
           required={required}
-          {...(register ? register(id) : {})}
+          {...(register ? register(id as Path<T>) : {})}
+          {...(multiple ? { multiple } : {})}
         >
           {options.map((option) => (
             <option key={option.value} value={option.value}>
@@ -81,7 +85,7 @@ export default function FormField({
             onChange={onChange}
             disabled={disabled}
             required={required}
-            {...(register ? register(id) : {})}
+            {...(register ? register(id as Path<T>) : {})}
           />
           <button
             type="button"
@@ -108,7 +112,7 @@ export default function FormField({
         onChange={onChange}
         disabled={disabled}
         required={required}
-        {...(register ? register(id) : {})}
+        {...(register ? register(id as Path<T>) : {})}
       />
     );
   };

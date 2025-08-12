@@ -38,9 +38,7 @@ const createUserSchema = z.object({
     .min(8, 'Mật khẩu phải có ít nhất 8 ký tự')
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
       'Mật khẩu phải chứa ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt'),
-  role: z.enum(['student', 'admin'], {
-    errorMap: () => ({ message: 'Vai trò không hợp lệ' }),
-  }),
+  roles: z.array(z.string()),
 });
 
 // Validation schema for user update
@@ -54,9 +52,7 @@ const updateUserSchema = z.object({
     .string()
     .email('Email không hợp lệ')
     .max(255, 'Email không được quá 255 ký tự'),
-  role: z.enum(['student', 'admin'], {
-    errorMap: () => ({ message: 'Vai trò không hợp lệ' }),
-  }),
+  roles: z.array(z.string()),
   emailVerified: z.boolean(),
 });
 
@@ -84,7 +80,7 @@ function CreateUserForm({ onSubmit, isSubmitting, submitError }: {
       username: '',
       email: '',
       password: '',
-      role: 'student',
+      roles: ['student'],
     },
   });
 
@@ -93,7 +89,7 @@ function CreateUserForm({ onSubmit, isSubmitting, submitError }: {
       username: '',
       email: '',
       password: '',
-      role: 'student',
+      roles: ['student'],
     });
   }, [reset]);
 
@@ -149,11 +145,11 @@ function CreateUserForm({ onSubmit, isSubmitting, submitError }: {
 
           {/* Role */}
           <FormField
-            id="role"
+            id="roles"
             label="Vai trò"
             type="select"
             required
-            error={errors.role?.message}
+            error={errors.roles?.message}
             options={[
               { value: 'student', label: 'Học sinh' },
               { value: 'admin', label: 'Quản trị viên' },
@@ -200,7 +196,7 @@ function UpdateUserForm({ user, onSubmit, isSubmitting, submitError }: {
     defaultValues: {
       username: user.username,
       email: user.email,
-      role: user.role.toLowerCase() as 'student' | 'admin',
+      roles: Array.from(user.roles),
       emailVerified: user.emailVerified,
     },
   });
@@ -209,7 +205,7 @@ function UpdateUserForm({ user, onSubmit, isSubmitting, submitError }: {
     reset({
       username: user.username,
       email: user.email,
-      role: user.role.toLowerCase() as 'student' | 'admin',
+      roles: Array.from(user.roles),
       emailVerified: user.emailVerified,
     });
   }, [user, reset]);
@@ -251,15 +247,16 @@ function UpdateUserForm({ user, onSubmit, isSubmitting, submitError }: {
 
           {/* Role */}
           <FormField
-            id="role"
+            id="roles"
             label="Vai trò"
             type="select"
             required
-            error={errors.role?.message}
+            error={errors.roles?.message}
             options={[
               { value: 'student', label: 'Học sinh' },
               { value: 'admin', label: 'Quản trị viên' },
             ]}
+            multiple={true}
             register={register}
           />
 
@@ -313,7 +310,7 @@ export default function UserForm({ user, isOpen, onClose, onSuccess }: UserFormP
       // Convert display role to backend role format
       const backendData = {
         ...data,
-        role: data.role.toUpperCase() as 'STUDENT' | 'ADMIN',
+        roles: Array.from(data.roles),
       };
       await createUser(backendData);
       onSuccess();
@@ -335,7 +332,7 @@ export default function UserForm({ user, isOpen, onClose, onSuccess }: UserFormP
       // Convert display role to backend role format
       const backendData = {
         ...data,
-        role: data.role.toUpperCase() as 'STUDENT' | 'ADMIN',
+        roles: Array.from(data.roles),
       };
       await updateUser(user.id, backendData);
       onSuccess();
@@ -388,4 +385,4 @@ export default function UserForm({ user, isOpen, onClose, onSuccess }: UserFormP
       )}
     </Modal>
   );
-} 
+}

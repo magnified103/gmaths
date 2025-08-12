@@ -15,8 +15,8 @@ export function roleToDisplay(role: UserRole): DisplayRole {
  * @param role - User role from backend.
  * @returns True if user is admin.
  */
-export function isAdmin(role: UserRole): boolean {
-  return role === 'ADMIN';
+export function isAdmin(user: User): boolean {
+  return user.roles.includes('staff');
 }
 
 /**
@@ -77,8 +77,7 @@ export const authAPI = {
         id: response.user.id,
         email: response.user.email,
         username: response.user.username,
-        roles: [],
-        role: response.user.roles.includes('staff') ? 'ADMIN' : 'STUDENT', // TODO: use actual roles
+        roles: response.user.roles,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -108,8 +107,7 @@ export const authAPI = {
         id: response.user.id,
         email: response.user.email,
         username: response.user.username,
-        roles: [],
-        role: response.user.roles.includes('staff') ? 'ADMIN' : 'STUDENT', // TODO: use actual roles
+        roles: response.user.roles,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -175,14 +173,13 @@ export const authAPI = {
     }
 
     try {
-      const response = await apiFetch<{ user: User }>('/auth/me');
-      
+      const response = await apiFetch<User>('/auth/me');
+
       return {
-        id: response.user.id,
-        email: response.user.email,
-        username: response.user.username,
-        roles: [],
-        role: response.user.roles.includes('staff') ? 'ADMIN' : 'STUDENT', // TODO: use actual roles
+        id: response.id,
+        email: response.email,
+        username: response.username,
+        roles: response.roles,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -192,4 +189,4 @@ export const authAPI = {
       return null;
     }
   },
-}; 
+};

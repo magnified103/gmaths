@@ -31,7 +31,7 @@ const Header: React.FC = () => {
       ];
     }
 
-    if (isAdmin(user.role)) {
+    if (isAdmin(user)) {
       return [
         { name: 'Bảng điều khiển', href: '/admin', current: location.pathname === '/admin' },
         { name: 'Quản lý người dùng', href: '/admin/users', current: location.pathname === '/admin/users' },
@@ -102,11 +102,11 @@ const Header: React.FC = () => {
                       <div className="font-medium text-gray-900">{user.username}</div>
                       <div className="text-xs">{user.email}</div>
                       <div className="text-xs capitalize">
-                        {isAdmin(user.role) ? 'Quản trị viên' : 'Học sinh'}
+                        {isAdmin(user) ? 'Quản trị viên' : 'Học sinh'}
                       </div>
                     </div>
                     <Link
-                      to={isAdmin(user.role) ? '/admin' : '/student/dashboard'}
+                      to={isAdmin(user) ? '/admin' : '/student/dashboard'}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setIsUserMenuOpen(false)}
                     >
