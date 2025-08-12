@@ -212,7 +212,7 @@ export async function processBulkUserImport(
 
       try {
         // Try to create the user with STUDENT role (security requirement)
-        await createUser(user.username, user.email, user.password, 'STUDENT');
+        await createUser(user.username, user.email, user.password, ['student']);
         result.successCount++;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';

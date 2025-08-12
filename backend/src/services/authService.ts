@@ -1,7 +1,6 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { User, Role } from '@prisma/client';
-import { User as TUser } from '../schemas/user';
+import { User } from '../schemas/user';
 import { RegisterData, LoginData } from '../schemas/auth'; // Import Zod types
 import { prisma } from '../utils/db';
 import { checkUserExists, throwIfUserExists } from '../utils/userHelpers';
@@ -74,7 +73,7 @@ export async function registerUser(data: RegisterData): Promise<string> {
  * @param data - Login credentials.
  * @returns Promise resolving to user data and token.
  */
-export async function loginUser(data: LoginData): Promise<TUser> {
+export async function loginUser(data: LoginData): Promise<User> {
   // Find user by email
   const user = await prisma.user.findUnique({
     where: { email: data.email },
@@ -207,7 +206,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
  * @param userId - User ID.
  * @returns Promise resolving to user data or null.
  */
-export async function getUserById(userId: string): Promise<TUser | null> {
+export async function getUserById(userId: string): Promise<User | null> {
   const result = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -239,7 +238,7 @@ export async function createUser(
   username: string,
   email: string,
   password: string,
-  roleName: string = 'student'
+  roles: string[],
 ): Promise<User> {
   const existenceCheck = await checkUserExists(email, username);
   throwIfUserExists(existenceCheck);
@@ -247,22 +246,31 @@ export async function createUser(
   const hashedPassword = await hashPassword(password);
   const emailVerificationToken = generateSecureToken();
 
-  return prisma.user.create({
+  const result = await prisma.user.create({
     data: {
       username,
       email,
       password: hashedPassword,
       emailVerificationToken,
       roles: {
-        connect: {
-          slug: roleName,
-        }
+        connect: roles.map(role => ({ slug: role }))
       },
     },
     include: {
       roles: true,
     },
   });
+
+  return {
+    id: result.id,
+    username: result.username,
+    email: result.email,
+    emailVerified: result.emailVerified,
+    roles: result.roles.map(role => role.slug),
+    createdAt: result.createdAt.toISOString(),
+    updatedAt: result.updatedAt.toISOString(),
+    lastLoginAt: result.lastLoginAt ? result.lastLoginAt.toISOString() : null,
+  }
 }
 
 import { UserFilters, UserListResponse, AdminUserUpdateData } from '../schemas/user'; // Import Zod types
@@ -339,7 +347,7 @@ export async function getUserList(filters: UserFilters): Promise<UserListRespons
 export async function updateUser(
   userId: string,
   data: AdminUserUpdateData
-): Promise<TUser | null> {
+): Promise<User | null> {
   if (data.email || data.username) {
     const existenceCheck = await checkUserExists(data.email || '', data.username || '', userId);
     if (existenceCheck.exists) {
@@ -353,10 +361,10 @@ export async function updateUser(
   if (data.email !== undefined) updateData.email = data.email;
   if (data.emailVerified !== undefined) updateData.emailVerified = data.emailVerified;
 
-  if (data.roleNames) {
+  if (data.roles) {
     const roles = await prisma.role.findMany({
       where: {
-        slug: { in: data.roleNames }, // Changed from name to slug
+        slug: { in: data.roles }, // Changed from name to slug
       },
     });
     updateData.roles = {

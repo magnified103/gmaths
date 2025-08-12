@@ -152,8 +152,9 @@ function CreateUserForm({ onSubmit, isSubmitting, submitError }: {
             error={errors.roles?.message}
             options={[
               { value: 'student', label: 'Học sinh' },
-              { value: 'admin', label: 'Quản trị viên' },
+              { value: 'staff', label: 'Quản trị viên' },
             ]}
+            multiple={true}
             register={register}
           />
         </div>
@@ -254,7 +255,7 @@ function UpdateUserForm({ user, onSubmit, isSubmitting, submitError }: {
             error={errors.roles?.message}
             options={[
               { value: 'student', label: 'Học sinh' },
-              { value: 'admin', label: 'Quản trị viên' },
+              { value: 'staff', label: 'Quản trị viên' },
             ]}
             multiple={true}
             register={register}

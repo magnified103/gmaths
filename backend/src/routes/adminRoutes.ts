@@ -82,7 +82,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userData = adminUserCreateSchema.parse(request.body);
-    const user = await createUser(userData.username, userData.email, userData.password, userData.roleName);
+    const user = await createUser(userData.username, userData.email, userData.password, userData.roles);
 
     return reply.status(201).send(successResponse(user, 'Tạo người dùng thành công', 201));
   });

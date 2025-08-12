@@ -23,7 +23,7 @@ export const adminUserCreateSchema = z.object({
   username: z.string().min(3).max(50),
   email: z.string().email(),
   password: z.string().min(8),
-  roleName: z.string(),
+  roles: z.array(z.string()),
 });
 
 export type AdminUserCreateData = z.infer<typeof adminUserCreateSchema>;
@@ -34,7 +34,7 @@ export type AdminUserCreateData = z.infer<typeof adminUserCreateSchema>;
 export const adminUserUpdateSchema = z.object({
   username: z.string().min(3).max(50).optional(),
   email: z.string().email().optional(),
-  roleNames: z.array(z.string()).optional(), // Changed from 'roles' to 'roleNames' to match service
+  roles: z.array(z.string()).optional(),
   emailVerified: z.boolean().optional(),
 });
 

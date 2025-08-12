@@ -193,13 +193,13 @@ describe('Admin Routes', () => {
         username: 'newuser',
         email: 'new@example.com',
         password: 'password123',
-        roleName: 'student',
+        roles: ['student'],
       };
       const mockCreatedUser = {
         id: createId(),
         username: mockUserData.username,
         email: mockUserData.email,
-        roles: [mockUserData.roleName],
+        roles: Array.from(mockUserData.roles),
         emailVerified: false,
       };
       (createUser as jest.Mock).mockResolvedValue(mockCreatedUser);
@@ -216,7 +216,7 @@ describe('Admin Routes', () => {
         mockUserData.username,
         mockUserData.email,
         mockUserData.password,
-        mockUserData.roleName
+        mockUserData.roles
       );
     });
 
@@ -257,7 +257,7 @@ describe('Admin Routes', () => {
           username: 'existinguser',
           email: 'existing@example.com',
           password: 'password123',
-          roleName: 'student',
+          roles: ['student'],
         },
       });
 

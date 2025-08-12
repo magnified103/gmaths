@@ -24,12 +24,12 @@ describe('Admin Service Functions (from authService)', () => {
       const password = 'AdminPassword123!';
       const roleName = 'student'; // Changed to an existing role
 
-      const user: any = await createUser(username, email, password, roleName); // Cast to any
+      const user: any = await createUser(username, email, password, [roleName]); // Cast to any
 
       expect(user).toBeDefined();
       expect(user.username).toBe(username);
       expect(user.email).toBe(email);
-      expect(user.roles.some((role: any) => role.slug === roleName)).toBe(true);
+      expect(user.roles).toContain(roleName);
 
       const fetchedUser: any = await prisma.user.findUnique({ // Cast to any
         where: { id: user.id },
@@ -46,9 +46,9 @@ describe('Admin Service Functions (from authService)', () => {
       const password = 'Password123!';
       const roleName = 'student';
 
-      await createUser(username, email, password, roleName);
+      await createUser(username, email, password, [roleName]);
 
-      await expect(createUser('anotheruser', email, 'AnotherPass123!', 'student'))
+      await expect(createUser('anotheruser', email, 'AnotherPass123!', ['student']))
         .rejects.toThrow('Email đã được sử dụng');
     });
 
@@ -58,9 +58,9 @@ describe('Admin Service Functions (from authService)', () => {
       const password = 'Password123!';
       const roleName = 'student';
 
-      await createUser(username, email, password, roleName);
+      await createUser(username, email, password, [roleName]);
 
-      await expect(createUser(username, 'anotheremail@example.com', 'AnotherPass123!', 'student'))
+      await expect(createUser(username, 'anotheremail@example.com', 'AnotherPass123!', ['student']))
         .rejects.toThrow('Tên đăng nhập đã được sử dụng');
     });
   });
@@ -68,9 +68,9 @@ describe('Admin Service Functions (from authService)', () => {
   describe('getUserList', () => {
     test('should return a paginated list of users', async () => {
       // Create some test users
-      await createUser('userA', 'userA@example.com', 'Password123!', 'student');
-      await createUser('userB', 'userB@example.com', 'Password123!', 'superuser'); // Changed to an existing role
-      await createUser('userC', 'userC@example.com', 'Password123!', 'student');
+      await createUser('userA', 'userA@example.com', 'Password123!', ['student']);
+      await createUser('userB', 'userB@example.com', 'Password123!', ['superuser']); // Changed to an existing role
+      await createUser('userC', 'userC@example.com', 'Password123!', ['student']);
 
       const filters = {
         page: 1,
@@ -90,9 +90,9 @@ describe('Admin Service Functions (from authService)', () => {
     });
 
     test('should filter users by username search', async () => {
-      await createUser('john.doe', 'john@example.com', 'Password123!', 'student');
-      await createUser('jane.doe', 'jane@example.com', 'Password123!', 'superuser'); // Changed to an existing role
-      await createUser('peter.pan', 'peter@example.com', 'Password123!', 'student');
+      await createUser('john.doe', 'john@example.com', 'Password123!', ['student']);
+      await createUser('jane.doe', 'jane@example.com', 'Password123!', ['superuser']); // Changed to an existing role
+      await createUser('peter.pan', 'peter@example.com', 'Password123!', ['student']);
 
       const filters = {
         search: 'john',
@@ -110,8 +110,8 @@ describe('Admin Service Functions (from authService)', () => {
     });
 
     test('should filter users by email search', async () => {
-      await createUser('user1', 'test1@example.com', 'Password123!', 'student');
-      await createUser('user2', 'test2@example.com', 'Password123!', 'superuser'); // Changed to an existing role
+      await createUser('user1', 'test1@example.com', 'Password123!', ['student']);
+      await createUser('user2', 'test2@example.com', 'Password123!', ['superuser']); // Changed to an existing role
 
       const filters = {
         search: 'test1',
@@ -129,9 +129,9 @@ describe('Admin Service Functions (from authService)', () => {
     });
 
     test('should filter users by role', async () => {
-      await createUser('student1', 'student1@example.com', 'Password123!', 'student');
-      await createUser('superuser1', 'superuser1@example.com', 'Password123!', 'superuser');
-      await createUser('student2', 'student2@example.com', 'Password123!', 'student');
+      await createUser('student1', 'student1@example.com', 'Password123!', ['student']);
+      await createUser('superuser1', 'superuser1@example.com', 'Password123!', ['superuser']);
+      await createUser('student2', 'student2@example.com', 'Password123!', ['student']);
 
       const filters = {
         role: 'superuser', // Changed to slug
@@ -150,8 +150,8 @@ describe('Admin Service Functions (from authService)', () => {
     });
 
     test('should filter users by email verification status', async () => {
-      const user1 = await createUser('verifiedUser', 'verified@example.com', 'Password123!', 'student');
-      const user2 = await createUser('unverifiedUser', 'unverified@example.com', 'Password123!', 'student');
+      const user1 = await createUser('verifiedUser', 'verified@example.com', 'Password123!', ['student']);
+      const user2 = await createUser('unverifiedUser', 'unverified@example.com', 'Password123!', ['student']);
 
       // Manually set emailVerified for user1
       await prisma.user.update({
@@ -183,9 +183,9 @@ describe('Admin Service Functions (from authService)', () => {
     });
 
     test('should sort users by username ascending', async () => {
-      await createUser('zebra', 'zebra@example.com', 'Password123!', 'student');
-      await createUser('apple', 'apple@example.com', 'Password123!', 'student');
-      await createUser('banana', 'banana@example.com', 'Password123!', 'student');
+      await createUser('zebra', 'zebra@example.com', 'Password123!', ['student']);
+      await createUser('apple', 'apple@example.com', 'Password123!', ['student']);
+      await createUser('banana', 'banana@example.com', 'Password123!', ['student']);
 
       const filters = {
         sortBy: 'username',
@@ -204,9 +204,9 @@ describe('Admin Service Functions (from authService)', () => {
     });
 
     test('should sort users by email descending', async () => {
-      await createUser('user1', 'c@example.com', 'Password123!', 'student');
-      await createUser('user2', 'a@example.com', 'Password123!', 'student');
-      await createUser('user3', 'b@example.com', 'Password123!', 'student');
+      await createUser('user1', 'c@example.com', 'Password123!', ['student']);
+      await createUser('user2', 'a@example.com', 'Password123!', ['student']);
+      await createUser('user3', 'b@example.com', 'Password123!', ['student']);
 
       const filters = {
         sortBy: 'email',
@@ -227,7 +227,7 @@ describe('Admin Service Functions (from authService)', () => {
 
   describe('updateUser', () => {
     test('should update user details successfully', async () => {
-      const user = await createUser('updateTestUser', 'update@example.com', 'Password123!', 'student');
+      const user = await createUser('updateTestUser', 'update@example.com', 'Password123!', ['student']);
       const updatedUsername = 'updatedUser';
       const updatedEmail = 'updated@example.com';
       const updatedEmailVerified = true;
@@ -250,14 +250,14 @@ describe('Admin Service Functions (from authService)', () => {
     });
 
     test('should update user roles successfully', async () => {
-      const user = await createUser('roleTestUser', 'role@example.com', 'Password123!', 'student');
+      const user = await createUser('roleTestUser', 'role@example.com', 'Password123!', ['student']);
       const newRoles = ['superuser']; // Changed to slug
 
-      const updatedUser: any = await updateUser(user.id, { roleNames: newRoles });
+      const updatedUser: any = await updateUser(user.id, { roles: newRoles });
 
       expect(updatedUser).toBeDefined();
       expect(updatedUser?.roles).toContain('superuser');
-      expect(updatedUser?.roles).not.toContain('student');
+      expect(updatedUser?.roles).not.toContain(['student']);
 
       const fetchedUser: any = await prisma.user.findUnique({
         where: { id: user.id },
@@ -273,16 +273,16 @@ describe('Admin Service Functions (from authService)', () => {
     });
 
     test('should throw error for duplicate email during update', async () => {
-      await createUser('userA', 'emailA@example.com', 'Password123!', 'student');
-      const userB = await createUser('userB', 'emailB@example.com', 'Password123!', 'student');
+      await createUser('userA', 'emailA@example.com', 'Password123!', ['student']);
+      const userB = await createUser('userB', 'emailB@example.com', 'Password123!', ['student']);
 
       await expect(updateUser(userB.id, { email: 'emailA@example.com' }))
         .rejects.toThrow('email is already in use.');
     });
 
     test('should throw error for duplicate username during update', async () => {
-      await createUser('userX', 'emailX@example.com', 'Password123!', 'student');
-      const userY = await createUser('userY', 'emailY@example.com', 'Password123!', 'student');
+      await createUser('userX', 'emailX@example.com', 'Password123!', ['student']);
+      const userY = await createUser('userY', 'emailY@example.com', 'Password123!', ['student']);
 
       await expect(updateUser(userY.id, { username: 'userX' }))
         .rejects.toThrow('username is already in use.');
@@ -291,7 +291,7 @@ describe('Admin Service Functions (from authService)', () => {
 
   describe('deleteUser', () => {
     test('should delete a user successfully', async () => {
-      const user = await createUser('deleteTestUser', 'delete@example.com', 'Password123!', 'student');
+      const user = await createUser('deleteTestUser', 'delete@example.com', 'Password123!', ['student']);
 
       const success = await deleteUser(user.id);
       expect(success).toBe(true);
