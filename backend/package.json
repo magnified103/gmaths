@@ -16,7 +16,7 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "ts-node prisma/seed/index.ts",
+    "db:seed": "prisma db seed",
     "db:seed:prod": "node -r ts-node/register prisma/seed/index.ts",
     "postinstall": "prisma generate"
   },
