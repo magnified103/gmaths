@@ -145,7 +145,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Create a new question (Admin only)
    */
   fastify.post<{ Body: CreateQuestionRequest }>('/', {
-    preHandler: [authenticate, requirePermission('create', 'Question')]
+    preHandler: [authenticate, requirePermission('Question:Create')]
   }, async (request, reply) => {
     try {
       // @ts-ignore
@@ -172,7 +172,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Update an existing question (Admin only)
    */
   fastify.put<{ Params: QuestionParams; Body: UpdateQuestionRequest }>('/:id', {
-    preHandler: [authenticate, requirePermission('update', 'Question')]
+    preHandler: [authenticate, requirePermission('Question:Update')]
   }, async (request, reply) => {
     try {
       // @ts-ignore
@@ -210,7 +210,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Soft delete a question (Admin only)
    */
   fastify.delete<{ Params: QuestionParams }>('/:id', {
-    preHandler: [authenticate, requirePermission('delete', 'Question')]
+    preHandler: [authenticate, requirePermission('Question:Delete')]
   }, async (request, reply) => {
     try {
       // @ts-ignore
@@ -268,7 +268,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Create a new question category (Admin only)
    */
   fastify.post<{ Body: CreateCategoryRequest }>('/categories', {
-    preHandler: [authenticate, requirePermission('create', 'Category')]
+    preHandler: [authenticate, requirePermission('Category:Create')]
   }, async (request, reply) => {
     try {
       const category = await questionService.createCategory(request.body);
@@ -314,7 +314,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * Create a new question tag (Admin only)
    */
   fastify.post<{ Body: CreateTagRequest }>('/tags', {
-    preHandler: [authenticate, requirePermission('create', 'Tag')]
+    preHandler: [authenticate, requirePermission('Tag:Create')]
   }, async (request, reply) => {
     try {
       const tag = await questionService.createTag(request.body);
@@ -339,7 +339,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * TODO: Implement in future step
    */
   fastify.post('/bulk-import', {
-    preHandler: [authenticate, requirePermission('import', 'Question')]
+    preHandler: [authenticate, requirePermission('Question:Import')]
   }, async (request, reply) => {
     try {
       reply.code(501).send({
@@ -360,7 +360,7 @@ export async function questionRoutes(fastify: FastifyInstance) {
    * TODO: Implement in future step
    */
   fastify.get('/export', {
-    preHandler: [authenticate, requirePermission('export', 'Question')]
+    preHandler: [authenticate, requirePermission('Question:Export')]
   }, async (request, reply) => {
     try {
       reply.code(501).send({

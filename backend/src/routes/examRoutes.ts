@@ -117,11 +117,11 @@ interface TakeableExamsQuery {
  * @returns User ID string
  */
 function getUserIdFromRequest(request: FastifyRequest): string {
-  const user = (request as any).user;
-  if (!user?.id) {
+  const userId = (request as any).userId;
+  if (!userId) {
     throw new Error('User not authenticated');
   }
-  return user.id;
+  return userId;
 }
 
 /**
@@ -135,7 +135,7 @@ export async function examRoutes(fastify: FastifyInstance) {
 
     // Session management routes
     fastify.patch<{ Params: SessionParams; Body: any }>('/exam-sessions/:sessionId', {
-        preHandler: [authenticate, requirePermission('update', 'ExamSession')]
+        preHandler: [requirePermission('ExamSession:Update')]
     }, async (request, reply) => {
       try {
         const { sessionId } = request.params;
@@ -167,7 +167,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.get<{ Params: SessionParams }>('/exam-sessions/:sessionId', {
-        preHandler: [authenticate, requirePermission('read', 'ExamSession')]
+        preHandler: [requirePermission('ExamSession:Read')]
     }, async (request, reply) => {
       try {
         const { sessionId } = request.params;
@@ -194,7 +194,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.post<{ Params: SessionParams; Body: any }>('/exam-sessions/:sessionId/sync', {
-        preHandler: [authenticate, requirePermission('update', 'ExamSession')]
+        preHandler: [requirePermission('ExamSession:Update')]
     }, async (request, reply) => {
       try {
         const { sessionId } = request.params;
@@ -220,7 +220,7 @@ export async function examRoutes(fastify: FastifyInstance) {
 
     // Exam CRUD routes (admin only)
     fastify.post<{ Body: CreateExamRequest }>('/exams', {
-      preHandler: [authenticate, requirePermission('create', 'Exam')]
+      preHandler: [requirePermission('Exam:Create')]
     }, async (request, reply) => {
       try {
         const examData = createExamSchema.parse(request.body);
@@ -234,7 +234,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.get<{ Querystring: ExamListQuery }>('/exams', {
-      preHandler: [authenticate, requirePermission('read', 'Exam')]
+      preHandler: [requirePermission('Exam:Read')]
     }, async (request, reply) => {
       try {
         const { 
@@ -289,7 +289,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.put<{ Params: ExamParams; Body: UpdateExamRequest }>('/exams/:id', {
-      preHandler: [authenticate, requirePermission('update', 'Exam')]
+      preHandler: [requirePermission('Exam:Update')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);
@@ -304,7 +304,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.delete<{ Params: ExamParams }>('/exams/:id', {
-      preHandler: [authenticate, requirePermission('delete', 'Exam')]
+      preHandler: [requirePermission('Exam:Delete')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);
@@ -318,7 +318,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.patch<{ Params: ExamParams }>('/exams/:id/publish', {
-      preHandler: [authenticate, requirePermission('publish', 'Exam')]
+      preHandler: [requirePermission('Exam:Update')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);
@@ -332,7 +332,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.patch<{ Params: ExamParams }>('/exams/:id/archive', {
-      preHandler: [authenticate, requirePermission('archive', 'Exam')]
+      preHandler: [requirePermission('Exam:Update')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);
@@ -346,7 +346,7 @@ export async function examRoutes(fastify: FastifyInstance) {
     });
 
     fastify.post<{ Params: ExamParams; Body: DuplicateExamBody }>('/exams/:id/duplicate', {
-      preHandler: [authenticate, requirePermission('duplicate', 'Exam')]
+      preHandler: [requirePermission('Exam:Update')]
     }, async (request, reply) => {
       try {
         const { id } = examIdSchema.parse(request.params);

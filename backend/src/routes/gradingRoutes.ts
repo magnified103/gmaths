@@ -55,7 +55,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get detailed exam results for a specific student (Admin only)
      */
     fastify.get<{ Params: ExamUserParams }>('/exams/:examId/results/:userId', {
-      preHandler: [authenticate, requirePermission('read', 'ExamResult')]
+      preHandler: [requirePermission('ExamResult:Read')]
     }, async (request, reply) => {
       try {
         const { examId, userId } = request.params;
@@ -125,7 +125,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get performance analytics for an exam (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/analytics', {
-      preHandler: [authenticate, requirePermission('read', 'ExamAnalytics')]
+      preHandler: [requirePermission('ExamAnalytics:Read')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -223,7 +223,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get grading dashboard statistics (Admin only)
      */
     fastify.get('/dashboard/stats', {
-      preHandler: [authenticate, requirePermission('read', 'GradingDashboard')]
+      preHandler: [requirePermission('GradingDashboard:Read')]
     }, async (request, reply) => {
       try {
         const stats = await examService.getGradingDashboardStats();
@@ -242,7 +242,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Regrade an exam with updated scoring algorithms (Admin only)
      */
     fastify.post<{ Params: ExamParams }>('/exams/:examId/regrade', {
-      preHandler: [authenticate, requirePermission('regrade', 'Exam')]
+      preHandler: [requirePermission('Exam:Regrade')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -264,7 +264,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Export exam results as CSV (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/export', {
-      preHandler: [authenticate, requirePermission('export', 'ExamResult')]
+      preHandler: [requirePermission('ExamResult:Export')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -339,7 +339,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get specific attempt results for a student (Admin only)
      */
     fastify.get<{ Params: ExamUserAttemptParams }>('/exams/:examId/attempts/:userId/:attemptNumber', {
-      preHandler: [authenticate, requirePermission('read', 'ExamResult')]
+      preHandler: [authenticate, requirePermission('ExamResult:Read')]
     }, async (request, reply) => {
       try {
         const { examId, userId, attemptNumber } = request.params;
@@ -368,7 +368,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get all results for a specific exam (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/all-results', {
-      preHandler: [authenticate, requirePermission('read', 'ExamResult')]
+      preHandler: [authenticate, requirePermission('ExamResult:Read')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -389,7 +389,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get exam info and statistics (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/info-stats', {
-      preHandler: [authenticate, requirePermission('read', 'ExamStat')]
+      preHandler: [authenticate, requirePermission('ExamStat:Read')]
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -410,7 +410,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get student info and statistics (Admin only)
      */
     fastify.get<{ Params: UserParams }>('/students/:userId/info-stats', {
-      preHandler: [authenticate, requirePermission('read', 'StudentStat')]
+      preHandler: [authenticate, requirePermission('StudentStat:Read')]
     }, async (request, reply) => {
       try {
         const { userId } = request.params;
