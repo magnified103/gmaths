@@ -189,18 +189,18 @@ async function registerRoutes(): Promise<void> {
   await fastify.register(adminRoutes, { prefix: '/api' });
   
   // Register question routes
-  // await fastify.register(questionRoutes, { prefix: '/api/questions' });
+  await fastify.register(questionRoutes, { prefix: '/api/questions' });
   
   // Register exam routes
-  // await fastify.register(examRoutes, { prefix: '/api' });
+  await fastify.register(examRoutes, { prefix: '/api' });
   
   // Register timer routes (requires WebSocket service)
-  // await fastify.register(async (fastify) => {
-  //   await timerRoutes(fastify, websocketService);
-  // }, { prefix: '/api/timer' });
+  await fastify.register(async (fastify) => {
+    await timerRoutes(fastify, websocketService);
+  }, { prefix: '/api/timer' });
   
   // // Register grading routes
-  // await fastify.register(gradingRoutes);
+  await fastify.register(gradingRoutes);
 }
 
 /**

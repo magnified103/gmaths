@@ -17,6 +17,7 @@ import type { Question, QuestionCreateForm, QuestionCategory, QuestionType } fro
 import { createQuestion, updateQuestion, fetchCategories } from '../../api/questions';
 import { getTextContent, getOptionLabel } from '../../utils/questionUtils';
 import { SimpleLatexInput } from './SimpleLatexInput';
+import type { UseFormRegister, UseFormSetValue, UseFormWatch, FieldErrors } from 'react-hook-form';
 
 interface QuestionFormProps {
   question?: Question | null;
@@ -71,7 +72,7 @@ const questionSchema = z.object({
     )
     .optional(),
   // True/False specific fields
-  correctAnswer: z.boolean().optional(),
+  correctAnswer: z.coerce.boolean().optional(),
   showRandomOrder: z.boolean().optional(),
   // Fill-in-blank specific fields
   blanks: z
@@ -97,7 +98,7 @@ const questionSchema = z.object({
   // Type-specific validation with specific error messages
   switch (data.type) {
     case 'multiple-choice':
-    case 'multiple-select':
+    case 'multiple-select': { // Added opening brace
       if (!data.options || data.options.length < 2) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -139,6 +140,7 @@ const questionSchema = z.object({
         });
       }
       break;
+    } // Added closing brace
       
     case 'true-false':
       if (data.correctAnswer === undefined) {
@@ -195,10 +197,10 @@ type QuestionFormData = z.infer<typeof questionSchema>;
  * Short Answer Fields Component
  */
 interface ShortAnswerFieldsProps {
-  register: any;
-  setValue: any;
-  watch: any;
-  errors: any;
+  register: UseFormRegister<QuestionFormData>;
+  setValue: UseFormSetValue<QuestionFormData>;
+  watch: UseFormWatch<QuestionFormData>;
+  errors: FieldErrors<QuestionFormData>;
 }
 
 const ShortAnswerFields: React.FC<ShortAnswerFieldsProps> = ({
@@ -364,17 +366,14 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
       category: typeof question.category === 'string' ? question.category : (question.category?.id || ''),
       difficulty: question.difficulty || 'medium' as const,
       type: question.type,
-      imageUrl: (question as any).imageUrl || '',
+      imageUrl: question.imageUrl || '',
     };
-
-    // Extract type-specific data from the typeData field (backend stores data here)
-    const typeData = (question as any).typeData || {};
 
     // Type-specific values
     switch (question.type) {
       case 'multiple-choice':
       case 'multiple-select': {
-        const mcOptions = typeData.options?.map((opt: any) => ({
+        const mcOptions = question.options?.map((opt) => ({
           text: opt.text || '',
           isCorrect: opt.isCorrect || false,
         })) || [
@@ -393,35 +392,35 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
       case 'true-false':
         return {
           ...baseValues,
-          correctAnswer: typeData.correctAnswer ?? true,
-          showRandomOrder: typeData.randomizeOrder ?? false,
+          correctAnswer: question.correctAnswer ?? true,
+          showRandomOrder: question.showRandomOrder ?? false,
         };
 
       case 'fill-blank':
         return {
           ...baseValues,
-          blanks: typeData.blanks?.map((blank: any) => ({
+          blanks: question.blanks?.map((blank) => ({
             position: blank.position || 0,
             acceptedAnswers: blank.acceptedAnswers || [],
             caseSensitive: blank.caseSensitive || false,
             placeholder: blank.placeholder || '',
           })) || [],
-          caseSensitive: typeData.caseSensitive || false,
+          caseSensitive: question.caseSensitive || false,
         };
 
       case 'short-answer':
         return {
           ...baseValues,
-          acceptableAnswers: typeData.acceptableAnswers || [''],
-          caseSensitive: typeData.caseSensitive || false,
+          acceptableAnswers: question.acceptableAnswers || [''],
+          caseSensitive: question.caseSensitive || false,
         };
 
       case 'essay':
         return {
           ...baseValues,
-          maxWords: typeData.maxWords,
-          minWords: typeData.minWords,
-          rubric: typeData.rubric || '',
+          maxWords: question.maxWords,
+          minWords: question.minWords,
+          rubric: question.rubric || '',
         };
 
       default:
@@ -495,8 +494,6 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
    */
   useEffect(() => {
     if (watchedType) {
-      setQuestionType(watchedType);
-      
       // Clear irrelevant fields when question type changes
       switch (watchedType) {
         case 'multiple-choice':
@@ -577,7 +574,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
           break;
       }
     }
-  }, [watchedType, setValue, replace, watchedOptions, watch]);
+  }, [watchedType, setValue, replace, watch]);
 
   /**
    * Handle form submission
@@ -1123,4 +1120,4 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
       </form>
     </Modal>
   );
-} 
+}

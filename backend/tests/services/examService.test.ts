@@ -3,13 +3,6 @@
  * Tests all CRUD operations, validation, and business logic
  */
 
-import { ExamService } from '../../src/services/examService';
-import type {
-  CreateExamRequest,
-  UpdateExamRequest,
-  ExamFilters,
-} from '../../src/types/exam';
-
 // Mock Prisma client
 var mockPrisma = {
   exam: {
@@ -38,6 +31,13 @@ jest.mock('bcryptjs', () => ({
 jest.mock('@prisma/client', () => ({
   PrismaClient: jest.fn().mockImplementation(() => mockPrisma),
 }));
+
+import { ExamService } from '../../src/services/examService';
+import type {
+  CreateExamRequest,
+  UpdateExamRequest,
+  ExamFilters,
+} from '../../src/types/exam';
 
 describe('ExamService', () => {
   let examService: ExamService;

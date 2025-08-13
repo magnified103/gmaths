@@ -29,7 +29,7 @@ export default function QuestionPreview({ question, isOpen, onClose }: QuestionP
   const renderQuestionOptions = () => {
     switch (question.type) {
       case 'multiple-choice':
-      case 'multiple-select':
+      case 'multiple-select': {
         const mcQuestion = question as any;
         if (!mcQuestion.options) return null;
         
@@ -62,6 +62,7 @@ export default function QuestionPreview({ question, isOpen, onClose }: QuestionP
             </div>
           </div>
         );
+      }
 
       case 'true-false':
         const tfQuestion = question as any;
