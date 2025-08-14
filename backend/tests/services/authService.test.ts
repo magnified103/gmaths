@@ -339,7 +339,8 @@ describe('Authentication Service', () => {
       expect(result.username).toEqual(userData.username);
       expect(result.email).toEqual(userData.email);
       expect(result.emailVerified).toEqual(userData.emailVerified);
-      expect(result.roles).toEqual(['student', 'superuser']);
+      expect(result.roles).toContain(['student', 'superuser']);
+      expect(result.roles.length).toBe(2);
     });
 
     test('should return null for non-existent user', async () => {

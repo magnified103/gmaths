@@ -7,6 +7,7 @@ import jwt from '@fastify/jwt';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import * as authService from '../../src/services/authService';
 import { authRoutes } from '../../src/routes/authRoutes';
+import { globalErrorHandler } from '@/utils/errors';
 
 const mockAuthService = authService as jest.Mocked<typeof authService>;
 
@@ -18,6 +19,9 @@ describe('Authentication Routes', () => {
     app = Fastify({ logger: false });
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
+
+    // set error handler prior to registering routes
+    app.setErrorHandler(globalErrorHandler);
     
     // Register form body plugin for JSON parsing
     await app.register(require('@fastify/formbody'));
@@ -392,9 +396,11 @@ describe('Authentication Routes', () => {
       });
 
       expect(response.statusCode).toBe(401);
-      const responseData = JSON.parse(response.body);
-      expect(responseData.error).toBe('Unauthorized');
-      expect(responseData.message).toBe('Invalid token');
+      expect(response.json()).toEqual(expect.objectContaining({
+        message: 'Invalid token',
+        errors: [],
+        code: 401,
+      }));
     });
 
     test('should return unauthorized for invalid token', async () => {
@@ -407,9 +413,11 @@ describe('Authentication Routes', () => {
       });
 
       expect(response.statusCode).toBe(401);
-      const responseData = JSON.parse(response.body);
-      expect(responseData.error).toBe('Unauthorized');
-      expect(responseData.message).toBe('Invalid token');
+      expect(response.json()).toEqual(expect.objectContaining({
+        message: 'Invalid token',
+        errors: [],
+        code: 401,
+      }));
     });
   });
 
@@ -444,9 +452,11 @@ describe('Authentication Routes', () => {
       });
 
       expect(response.statusCode).toBe(401);
-      const responseData = JSON.parse(response.body);
-      expect(responseData.error).toBe('Unauthorized');
-      expect(responseData.message).toBe('Invalid token');
+      expect(response.json()).toEqual(expect.objectContaining({
+        message: 'Invalid token',
+        errors: [],
+        code: 401,
+      }));
     });
   });
 }); 

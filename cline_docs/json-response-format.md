@@ -67,7 +67,8 @@ When an endpoint returns a collection or list of resources, the response body wi
   ],
   "itemsPerPage": 10,
   "pageIndex": 0,
-  "totalPages": 5
+  "totalPages": 5,
+  "totalItems": 42
 }
 ```
 
@@ -77,6 +78,7 @@ When an endpoint returns a collection or list of resources, the response body wi
 *   `itemsPerPage` (number): The maximum number of items returned per page.
 *   `pageIndex` (number): The current page number (0-indexed).
 *   `totalPages` (number, nullable): The total number of pages available. This can be `null` if the total number of pages is not applicable or cannot be determined (e.g., for infinite scroll or very large datasets).
+*   `totalItems` (number, nullable): The total number of items across all pages. This can be `null` if the total number of items is not applicable or cannot be determined.
 
 ```
 

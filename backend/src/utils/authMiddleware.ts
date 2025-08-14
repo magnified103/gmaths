@@ -1,6 +1,6 @@
-import { fastify, FastifyRequest, FastifyReply, FastifyInstance, HookHandlerDoneFunction } from 'fastify';
+import { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify';
 import { hasPermission } from '../services/permissionService';
-import { CustomError, handleRouteError } from './errorHandler';
+import { ForbiddenError, UnauthorizedError } from './errors';
 
 
 export async function verifyToken(this: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
@@ -11,7 +11,7 @@ export async function verifyToken(this: FastifyInstance, request: FastifyRequest
     // @ts-ignore
     request.userId = userId;
   } catch (err) {
-    throw new CustomError("Invalid token", 401);
+    throw new UnauthorizedError("Invalid token");
   }
 }
 
@@ -28,18 +28,14 @@ export async function requireLogin(this: FastifyInstance, request: FastifyReques
 
 export function requirePermission(...permissions: string[]) {
   return async function(this: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
-    try {
-      await verifyToken.apply(this, [request, reply]);
-    } catch (err) {
-      return handleRouteError(err, reply, 'requirePermission');
-    }
+    await verifyToken.apply(this, [request, reply]);
 
     // @ts-ignore
     const promises = permissions.map(perm => hasPermission(request.userId, perm));
     const results = await Promise.all(promises);
     const hasAllPermissions = results.every((result) => result);
     if (!hasAllPermissions) {
-      return handleRouteError(new CustomError("Permission denied", 403), reply);
+      throw new ForbiddenError("You do not have permission to access this resource");
     }
   };
 };
