@@ -190,7 +190,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/exam-summaries - Get exam summaries for admin dashboard
    */
   app.get('/admin/exam-summaries', {
-    preHandler: requirePermission('ExamSummary:Read'),
+    preHandler: requirePermission('Stats:Read'),
     schema: {
       tags: ['Admin'],
     }
@@ -204,7 +204,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/student-summaries - Get student summaries for admin dashboard
    */
   app.get('/admin/student-summaries', {
-    preHandler: requirePermission('StudentSummary:Read'),
+    preHandler: requirePermission('Stats:Read'),
     schema: {
       tags: ['Admin'],
     }
@@ -218,7 +218,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * GET /admin/dashboard-stats - Get comprehensive dashboard statistics
    */
   app.get('/admin/dashboard-stats', {
-    preHandler: requirePermission('DashboardStat:Read'),
+    preHandler: requirePermission('Stats:Read'),
     schema: {
       tags: ['Admin'],
     }

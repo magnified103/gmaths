@@ -8,6 +8,23 @@ export async function seed(prisma: PrismaClient) {
     { code: 'User:Read' },
     { code: 'User:Update' },
     { code: 'User:Delete' },
+    { code: 'Stats:Read' },
+    { code: 'Exam:Create' },
+    { code: 'Exam:Read' },
+    { code: 'Exam:Update' },
+    { code: 'Exam:Delete' },
+    { code: 'Role:Create' },
+    { code: 'Role:Read' },
+    { code: 'Role:Update' },
+    { code: 'Role:Delete' },
+    { code: 'ExamSession:Create' },
+    { code: 'ExamSession:Read' },
+    { code: 'ExamSession:Update' },
+    { code: 'ExamSession:Delete' },
+    { code: 'Question:Create' },
+    { code: 'Question:Read' },
+    { code: 'Question:Update' },
+    { code: 'Question:Delete' },
   ];
   for (const perm of permissions) {
     await prisma.permission.upsert({

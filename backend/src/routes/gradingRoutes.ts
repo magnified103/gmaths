@@ -339,7 +339,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get specific attempt results for a student (Admin only)
      */
     fastify.get<{ Params: ExamUserAttemptParams }>('/exams/:examId/attempts/:userId/:attemptNumber', {
-      preHandler: [authenticate, requirePermission('ExamResult:Read')]
+      preHandler: requirePermission('ExamResult:Read')
     }, async (request, reply) => {
       try {
         const { examId, userId, attemptNumber } = request.params;
@@ -368,7 +368,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get all results for a specific exam (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/all-results', {
-      preHandler: [authenticate, requirePermission('ExamResult:Read')]
+      preHandler: requirePermission('ExamResult:Read')
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -389,7 +389,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get exam info and statistics (Admin only)
      */
     fastify.get<{ Params: ExamParams }>('/exams/:examId/info-stats', {
-      preHandler: [authenticate, requirePermission('ExamStat:Read')]
+      preHandler: requirePermission('ExamStat:Read')
     }, async (request, reply) => {
       try {
         const { examId } = request.params;
@@ -410,7 +410,7 @@ export async function gradingRoutes(fastify: FastifyInstance) {
      * Get student info and statistics (Admin only)
      */
     fastify.get<{ Params: UserParams }>('/students/:userId/info-stats', {
-      preHandler: [authenticate, requirePermission('StudentStat:Read')]
+      preHandler: requirePermission('StudentStat:Read')
     }, async (request, reply) => {
       try {
         const { userId } = request.params;
