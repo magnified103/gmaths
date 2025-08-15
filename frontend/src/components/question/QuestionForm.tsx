@@ -369,11 +369,14 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
       imageUrl: question.imageUrl || '',
     };
 
+    // Extract type-specific data from the typeData field (backend stores data here)
+    const typeData = (question as any).typeData || {};
+
     // Type-specific values
     switch (question.type) {
       case 'multiple-choice':
       case 'multiple-select': {
-        const mcOptions = question.options?.map((opt) => ({
+        const mcOptions = typeData.options?.map((opt: any) => ({
           text: opt.text || '',
           isCorrect: opt.isCorrect || false,
         })) || [
@@ -392,35 +395,35 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
       case 'true-false':
         return {
           ...baseValues,
-          correctAnswer: question.correctAnswer ?? true,
-          showRandomOrder: question.showRandomOrder ?? false,
+          correctAnswer: typeData.correctAnswer ?? true,
+          showRandomOrder: typeData.randomizeOrder ?? false,
         };
 
       case 'fill-blank':
         return {
           ...baseValues,
-          blanks: question.blanks?.map((blank) => ({
+          blanks: typeData.blanks?.map((blank: any) => ({
             position: blank.position || 0,
             acceptedAnswers: blank.acceptedAnswers || [],
             caseSensitive: blank.caseSensitive || false,
             placeholder: blank.placeholder || '',
           })) || [],
-          caseSensitive: question.caseSensitive || false,
+          caseSensitive: typeData.caseSensitive || false,
         };
 
       case 'short-answer':
         return {
           ...baseValues,
-          acceptableAnswers: question.acceptableAnswers || [''],
-          caseSensitive: question.caseSensitive || false,
+          acceptableAnswers: typeData.acceptableAnswers || [''],
+          caseSensitive: typeData.caseSensitive || false,
         };
 
       case 'essay':
         return {
           ...baseValues,
-          maxWords: question.maxWords,
-          minWords: question.minWords,
-          rubric: question.rubric || '',
+          maxWords: typeData.maxWords,
+          minWords: typeData.minWords,
+          rubric: typeData.rubric || '',
         };
 
       default:
