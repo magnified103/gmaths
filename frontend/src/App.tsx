@@ -20,6 +20,7 @@ import AdminResultsPage from './pages/AdminResultsPage';
 import ExamResultsManagementPage from './pages/ExamResultsManagementPage';
 import StudentResultsManagementPage from './pages/StudentResultsManagementPage';
 import StudentExamAttemptResultPage from './pages/StudentExamAttemptResultPage';
+import AdminRolesPage from './pages/AdminRolesPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AuthGuard from './components/auth/AuthGuard';
 // Placeholder pages and redirects
@@ -113,7 +114,7 @@ function App() {
             <Route 
               path="/student" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="student">
                   <StudentDashboard />
                 </ProtectedRoute>
               } 
@@ -121,7 +122,7 @@ function App() {
             <Route 
               path="/student/dashboard" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="student">
                   <StudentDashboard />
                 </ProtectedRoute>
               } 
@@ -129,7 +130,7 @@ function App() {
             <Route 
               path="/student/exams" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="student">
                   <StudentExamListPage />
                 </ProtectedRoute>
               } 
@@ -139,7 +140,7 @@ function App() {
             <Route 
               path="/student/results" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="student">
                   <StudentResultsPage />
                 </ProtectedRoute>
               } 
@@ -147,7 +148,7 @@ function App() {
             <Route 
               path="/student/exams/:examId/attempts" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="student">
                   <ExamAttemptsPage />
                 </ProtectedRoute>
               } 
@@ -155,7 +156,7 @@ function App() {
             <Route 
               path="/student/exams/:examId/attempts/:attemptNumber/result" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="student">
                   <ExamResultPage />
                 </ProtectedRoute>
               } 
@@ -163,7 +164,7 @@ function App() {
             <Route 
               path="/student/exams/:examId/result" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="student">
                   <ExamResultPage />
                 </ProtectedRoute>
               } 
@@ -175,7 +176,7 @@ function App() {
             <Route 
               path="/exams/:examId/take" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="student">
                   <ExamTakingPage />
                 </ProtectedRoute>
               } 
@@ -195,6 +196,14 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="staff">
                   <AdminPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/roles" 
+              element={
+                <ProtectedRoute requiredRole="staff">
+                  <AdminRolesPage />
                 </ProtectedRoute>
               } 
             />

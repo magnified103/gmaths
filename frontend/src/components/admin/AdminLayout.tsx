@@ -7,6 +7,7 @@ import {
   DocumentTextIcon,
   ClipboardDocumentListIcon,
   XMarkIcon,
+  KeyIcon, // Import KeyIcon for roles
 } from '@heroicons/react/24/outline';
 import BrandLogo from '../ui/BrandLogo';
 import { useAuth } from '../../hooks/useAuth';
@@ -17,10 +18,11 @@ interface AdminLayoutProps {
 
 interface NavigationItem {
   name: string;
-  href: string;
+  href?: string; // href becomes optional for parent items
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   current?: boolean;
   badge?: string | number;
+  children?: NavigationItem[]; // Add children for nested items
 }
 
 /**
@@ -39,29 +41,43 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       icon: HomeIcon, 
       current: location.pathname === '/admin' 
     },
-    { 
-      name: 'Quản lý người dùng', 
-      href: '/admin/users', 
-      icon: UsersIcon, 
-      current: location.pathname.startsWith('/admin/users') 
+    {
+      name: 'Quản lý người dùng',
+      href: '/admin/users',
+      icon: UsersIcon,
+      current: location.pathname.startsWith('/admin/users') || location.pathname.startsWith('/admin/roles'),
+      children: [
+        {
+          name: 'Danh sách người dùng',
+          href: '/admin/users',
+          icon: UsersIcon, // Can reuse parent icon or define a new one
+          current: location.pathname.startsWith('/admin/users'),
+        },
+        {
+          name: 'Quản lý vai trò',
+          href: '/admin/roles',
+          icon: KeyIcon,
+          current: location.pathname.startsWith('/admin/roles'),
+        },
+      ],
     },
-    { 
-      name: 'Ngân hàng câu hỏi', 
-      href: '/admin/questions', 
-      icon: AcademicCapIcon, 
-      current: location.pathname.startsWith('/admin/questions') 
+    {
+      name: 'Ngân hàng câu hỏi',
+      href: '/admin/questions',
+      icon: AcademicCapIcon,
+      current: location.pathname.startsWith('/admin/questions'),
     },
-    { 
-      name: 'Quản lý bài kiểm tra', 
-      href: '/admin/exams', 
-      icon: DocumentTextIcon, 
-      current: location.pathname.startsWith('/admin/exams') 
+    {
+      name: 'Quản lý bài kiểm tra',
+      href: '/admin/exams',
+      icon: DocumentTextIcon,
+      current: location.pathname.startsWith('/admin/exams'),
     },
-    { 
-      name: 'Quản lý kết quả', 
-      href: '/admin/results', 
-      icon: ClipboardDocumentListIcon, 
-      current: location.pathname.startsWith('/admin/results') 
+    {
+      name: 'Quản lý kết quả',
+      href: '/admin/results',
+      icon: ClipboardDocumentListIcon,
+      current: location.pathname.startsWith('/admin/results'),
     },
   ];
 
@@ -108,32 +124,94 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             {/* Navigation */}
             <nav className="mt-8 flex-1 px-2 space-y-1">
-              {navigation.map((item) => {
-                const isActive = item.current;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-900 border-r-2 border-primary-600'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <item.icon
-                      className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                        isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+              {navigation.map((item) => (
+                <div key={item.name}>
+                  {item.children ? (
+                    /* Parent item with children */
+                    <div className="relative group">
+                      <Link
+                        to={item.href || '#'} // Link to parent or a placeholder
+                        className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                          item.current
+                            ? 'bg-primary-100 text-primary-900 border-r-2 border-primary-600'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        <item.icon
+                          className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                            item.current ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+                          }`}
+                        />
+                        <span className="flex-1">{item.name}</span>
+                        <svg
+                          className={`ml-2 h-5 w-5 transform transition-transform duration-200 ${
+                            item.current ? 'rotate-90' : '' // Rotate if current path is under this parent
+                          }`}
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </Link>
+                      {/* Sub-items (dropdown) */}
+                      <div
+                        className={`
+                          ml-4 mt-1 space-y-1
+                          ${item.current ? 'block' : 'hidden'}
+                          group-hover:block
+                        `}
+                      >
+                        {item.children.map((child) => (
+                          <Link
+                            key={child.name}
+                            to={child.href || '#'}
+                            className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                              child.current
+                                ? 'bg-primary-100 text-primary-900 border-r-2 border-primary-600'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            }`}
+                          >
+                            <child.icon
+                              className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                                child.current ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+                              }`}
+                            />
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Regular item without children */
+                    <Link
+                      to={item.href || '#'}
+                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                        item.current
+                          ? 'bg-primary-100 text-primary-900 border-r-2 border-primary-600'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                       }`}
-                    />
-                    <span className="flex-1">{item.name}</span>
-                    {item.badge && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
+                    >
+                      <item.icon
+                        className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                          item.current ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+                        }`}
+                      />
+                      <span className="flex-1">{item.name}</span>
+                      {item.badge && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  )}
+                </div>
+              ))}
             </nav>
           </div>
 
@@ -186,33 +264,102 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Mobile Navigation */}
           <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
             <nav className="mt-8 flex-1 px-2 space-y-1">
-              {navigation.map((item) => {
-                const isActive = item.current;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={handleMobileNavClick}
-                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-900 border-r-2 border-primary-600'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <item.icon
-                      className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                        isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+              {navigation.map((item) => (
+                <div key={item.name}>
+                  {item.children ? (
+                    /* Parent item with children for mobile */
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // For mobile, toggle visibility on click
+                          // This is a simplified toggle, a more robust solution might use state
+                          const subMenu = document.getElementById(`mobile-submenu-${item.name}`);
+                          if (subMenu) subMenu.classList.toggle('hidden');
+                        }}
+                        className={`group flex items-center w-full px-2 py-2 text-sm font-medium rounded-md ${
+                          item.current
+                            ? 'bg-primary-100 text-primary-900 border-r-2 border-primary-600'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        <item.icon
+                          className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                            item.current ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+                          }`}
+                        />
+                        <span className="flex-1">{item.name}</span>
+                        <svg
+                          className={`ml-2 h-5 w-5 transform transition-transform duration-200 ${
+                            item.current ? 'rotate-90' : ''
+                          }`}
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                      {/* Sub-items for mobile */}
+                      <div
+                        id={`mobile-submenu-${item.name}`}
+                        className={`
+                          ml-4 mt-1 space-y-1
+                          ${item.current ? 'block' : 'hidden'}
+                        `}
+                      >
+                        {item.children.map((child) => (
+                          <Link
+                            key={child.name}
+                            to={child.href || '#'}
+                            onClick={handleMobileNavClick}
+                            className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                              child.current
+                                ? 'bg-primary-100 text-primary-900 border-r-2 border-primary-600'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            }`}
+                          >
+                            <child.icon
+                              className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                                child.current ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+                              }`}
+                            />
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Regular item without children for mobile */
+                    <Link
+                      to={item.href || '#'}
+                      onClick={handleMobileNavClick}
+                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                        item.current
+                          ? 'bg-primary-100 text-primary-900 border-r-2 border-primary-600'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                       }`}
-                    />
-                    <span className="flex-1">{item.name}</span>
-                    {item.badge && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
+                    >
+                      <item.icon
+                        className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                          item.current ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+                        }`}
+                      />
+                      <span className="flex-1">{item.name}</span>
+                      {item.badge && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  )}
+                </div>
+              ))}
             </nav>
           </div>
 
@@ -267,4 +414,4 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
     </div>
   );
-} 
+}
