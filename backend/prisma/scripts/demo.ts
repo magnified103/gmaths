@@ -108,6 +108,45 @@ async function seedTags() {
 async function main() {
   console.log('🌱 Starting database seeding...');
 
+  const superuserRole = {
+    slug: 'superuser',
+    name: 'Superuser',
+    description: 'Admin',
+    permissions: {
+      connect: [
+        { code: 'Admin:Read' },
+        { code: 'User:Create' },
+        { code: 'User:Read' },
+        { code: 'User:Update' },
+        { code: 'User:Delete' },
+        { code: 'Stats:Read' },
+        { code: 'Exam:Create' },
+        { code: 'Exam:Read' },
+        { code: 'Exam:Update' },
+        { code: 'Exam:Delete' },
+        { code: 'Role:Create' },
+        { code: 'Role:Read' },
+        { code: 'Role:Update' },
+        { code: 'Role:Delete' },
+        { code: 'ExamSession:Create' },
+        { code: 'ExamSession:Read' },
+        { code: 'ExamSession:Update' },
+        { code: 'ExamSession:Delete' },
+        { code: 'Question:Create' },
+        { code: 'Question:Read' },
+        { code: 'Question:Update' },
+        { code: 'Question:Delete' }
+      ]
+    }
+  };
+
+  // Create default roles
+  await prisma.role.upsert({
+    where: { slug: superuserRole.slug },
+    update: superuserRole,
+    create: superuserRole,
+  });
+
   // Create default admin user
   const adminPassword = await hashPassword('Admin@2024!');
 
