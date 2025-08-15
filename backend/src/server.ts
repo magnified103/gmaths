@@ -28,8 +28,6 @@ const fastify = Fastify({
     level: process.env.NODE_ENV === 'production' ? 'warn' : 'info'
   }
 });
-fastify.setValidatorCompiler(validatorCompiler);
-fastify.setSerializerCompiler(serializerCompiler);
 
 /**
  * Register plugins for CORS, form handling, and file uploads.

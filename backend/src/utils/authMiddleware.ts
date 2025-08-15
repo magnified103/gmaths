@@ -35,7 +35,7 @@ export function requirePermission(...permissions: string[]) {
     const results = await Promise.all(promises);
     const hasAllPermissions = results.every((result) => result);
     if (!hasAllPermissions) {
-      throw new ForbiddenError("You do not have permission to access this resource");
+      throw new ForbiddenError("Access denied");
     }
   };
 };

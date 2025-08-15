@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify'
-import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { Server as SocketIOServer } from 'socket.io';
@@ -10,6 +10,7 @@ import { examRoutes } from './routes/examRoutes';
 import { timerRoutes } from './routes/timerRoutes';
 import { gradingRoutes } from './routes/gradingRoutes';
 import { roleRoutes } from './routes/roleRoutes';
+import { permissionRoutes } from './routes/permissionRoutes';
 import { WebSocketService } from './services/websocketService';
 import { globalErrorHandler } from './utils/errors';
 
@@ -17,6 +18,9 @@ import { globalErrorHandler } from './utils/errors';
 export default async function serviceApp(
   fastify: FastifyInstance,
 ) {
+  fastify.setValidatorCompiler(validatorCompiler);
+  fastify.setSerializerCompiler(serializerCompiler);
+
   // Setup error handling before registering routes
   fastify.setErrorHandler(globalErrorHandler);
 
@@ -56,6 +60,9 @@ export default async function serviceApp(
 
   // Register role routes
   await fastify.register(roleRoutes, { prefix: '/api' });
+
+  // Register permission routes
+  await fastify.register(permissionRoutes, { prefix: '/api' });
   
   // Register admin routes
   await fastify.register(adminRoutes, { prefix: '/api' });

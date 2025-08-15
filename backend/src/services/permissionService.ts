@@ -1,4 +1,5 @@
 import { prisma } from '../utils/db';
+import { Permission } from '../schemas/permission';
 
 /**
  * Check if a user has a specific permission.
@@ -31,4 +32,18 @@ export async function hasPermission(userId: string, code: string): Promise<boole
     }
   }
   return false;
+}
+
+/**
+ * Get all permissions.
+ * @returns A list of all permissions.
+ */
+export async function getAllPermissions(): Promise<Permission[]> {
+  const permissions = await prisma.permission.findMany({
+    select: {
+      code: true,
+      description: true,
+    },
+  });
+  return permissions;
 }
