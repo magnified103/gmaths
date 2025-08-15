@@ -5,15 +5,18 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
 import type { UserListItem } from '../../types/admin';
 import { createUser, updateUser } from '../../api/admin';
+import { fetchRoles } from '../../api/roles';
 import Modal from '../ui/Modal';
 import FormField from '../ui/FormField';
 import Alert from '../ui/Alert';
 import { ButtonSpinner } from '../ui/LoadingSpinner';
+import { MultiSelect } from '../ui/MultiSelect';
 
 interface UserFormProps {
   user?: UserListItem | null;
@@ -62,19 +65,16 @@ type UpdateFormData = z.infer<typeof updateUserSchema>;
 /**
  * Create form component for new users.
  */
-function CreateUserForm({ onSubmit, isSubmitting, submitError }: {
+function CreateUserForm({ onSubmit, isSubmitting, submitError, availableRoles, isLoadingRoles }: {
   onSubmit: (data: CreateFormData) => Promise<void>;
   isSubmitting: boolean;
   submitError: string | null;
+  availableRoles: { value: string; label: string }[];
+  isLoadingRoles: boolean;
 }) {
   const [showPassword, setShowPassword] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<CreateFormData>({
+  const methods = useForm<CreateFormData>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
       username: '',
@@ -83,6 +83,8 @@ function CreateUserForm({ onSubmit, isSubmitting, submitError }: {
       roles: ['student'],
     },
   });
+
+  const { register, handleSubmit, reset, formState: { errors } } = methods;
 
   useEffect(() => {
     reset({
@@ -94,105 +96,85 @@ function CreateUserForm({ onSubmit, isSubmitting, submitError }: {
   }, [reset]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="px-4 pb-4 sm:px-6">
-        {/* Submit Error */}
-        {submitError && (
-          <Alert 
-            type="error" 
-            message={submitError} 
-            className="mb-4"
-          />
-        )}
-
-        <div className="space-y-4">
-          {/* Username */}
-          <FormField
-            id="username"
-            label="Tên đăng nhập"
-            type="text"
-            placeholder="Nhập tên đăng nhập"
-            required
-            error={errors.username?.message}
-            register={register}
-          />
-
-          {/* Email */}
-          <FormField
-            id="email"
-            label="Email"
-            type="email"
-            placeholder="Nhập địa chỉ email"
-            required
-            error={errors.email?.message}
-            register={register}
-          />
-
-          {/* Password */}
-          <FormField
-            id="password"
-            label="Mật khẩu"
-            type="password"
-            placeholder="Nhập mật khẩu"
-            required
-            error={errors.password?.message}
-            helpText="Mật khẩu phải chứa ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt"
-            showPasswordToggle
-            showPassword={showPassword}
-            onTogglePassword={() => setShowPassword(!showPassword)}
-            register={register}
-          />
-
-          {/* Role */}
-          <FormField
-            id="roles"
-            label="Vai trò"
-            type="select"
-            required
-            error={errors.roles?.message}
-            options={[
-              { value: 'student', label: 'Học sinh' },
-              { value: 'staff', label: 'Quản trị viên' },
-            ]}
-            multiple={true}
-            register={register}
-          />
-        </div>
-      </div>
-
-      {/* Footer with actions */}
-      <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm"
-        >
-          {isSubmitting ? (
-            <ButtonSpinner text="Đang tạo..." />
-          ) : (
-            'Tạo người dùng'
+    <FormProvider {...methods}>
+      <form id="create-user-form" onSubmit={handleSubmit(onSubmit)}>
+        <div className="px-4 pb-4 sm:px-6">
+          {/* Submit Error */}
+          {submitError && (
+            <Alert 
+              type="error" 
+              message={submitError} 
+              className="mb-4"
+            />
           )}
-        </button>
-      </div>
-    </form>
+
+          <div className="space-y-4 overflow-visible">
+            {/* Username */}
+            <FormField
+              id="username"
+              label="Tên đăng nhập"
+              type="text"
+              placeholder="Nhập tên đăng nhập"
+              required
+              error={errors.username?.message}
+              register={register}
+            />
+
+            {/* Email */}
+            <FormField
+              id="email"
+              label="Email"
+              type="email"
+              placeholder="Nhập địa chỉ email"
+              required
+              error={errors.email?.message}
+              register={register}
+            />
+
+            {/* Password */}
+            <FormField
+              id="password"
+              label="Mật khẩu"
+              type="password"
+              placeholder="Nhập mật khẩu"
+              required
+              error={errors.password?.message}
+              helpText="Mật khẩu phải chứa ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt"
+              showPasswordToggle
+              showPassword={showPassword}
+              onTogglePassword={() => setShowPassword(!showPassword)}
+              register={register}
+            />
+
+            {/* Role */}
+            <MultiSelect
+              name="roles"
+              label="Vai trò"
+              options={availableRoles}
+              error={errors.roles?.message}
+              disabled={isLoadingRoles}
+              placeholder="Chọn vai trò..."
+            />
+          </div>
+        </div>
+
+      </form>
+    </FormProvider>
   );
 }
 
 /**
  * Update form component for existing users.
  */
-function UpdateUserForm({ user, onSubmit, isSubmitting, submitError }: {
+function UpdateUserForm({ user, onSubmit, isSubmitting, submitError, availableRoles, isLoadingRoles }: {
   user: UserListItem;
   onSubmit: (data: UpdateFormData) => Promise<void>;
   isSubmitting: boolean;
   submitError: string | null;
+  availableRoles: { value: string; label: string }[];
+  isLoadingRoles: boolean;
 }) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<UpdateFormData>({
+  const methods = useForm<UpdateFormData>({
     resolver: zodResolver(updateUserSchema),
     defaultValues: {
       username: user.username,
@@ -201,6 +183,8 @@ function UpdateUserForm({ user, onSubmit, isSubmitting, submitError }: {
       emailVerified: user.emailVerified,
     },
   });
+
+  const { register, handleSubmit, reset, formState: { errors } } = methods;
 
   useEffect(() => {
     reset({
@@ -212,85 +196,68 @@ function UpdateUserForm({ user, onSubmit, isSubmitting, submitError }: {
   }, [user, reset]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="px-4 pb-4 sm:px-6">
-        {/* Submit Error */}
-        {submitError && (
-          <Alert 
-            type="error" 
-            message={submitError} 
-            className="mb-4"
-          />
-        )}
-
-        <div className="space-y-4">
-          {/* Username */}
-          <FormField
-            id="username"
-            label="Tên đăng nhập"
-            type="text"
-            placeholder="Nhập tên đăng nhập"
-            required
-            error={errors.username?.message}
-            register={register}
-          />
-
-          {/* Email */}
-          <FormField
-            id="email"
-            label="Email"
-            type="email"
-            placeholder="Nhập địa chỉ email"
-            required
-            error={errors.email?.message}
-            register={register}
-          />
-
-          {/* Role */}
-          <FormField
-            id="roles"
-            label="Vai trò"
-            type="select"
-            required
-            error={errors.roles?.message}
-            options={[
-              { value: 'student', label: 'Học sinh' },
-              { value: 'staff', label: 'Quản trị viên' },
-            ]}
-            multiple={true}
-            register={register}
-          />
-
-          {/* Email Verified */}
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="emailVerified"
-              {...register('emailVerified')}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+    <FormProvider {...methods}>
+      <form id="update-user-form" onSubmit={handleSubmit(onSubmit)}>
+        <div className="px-4 pb-4 sm:px-6">
+          {/* Submit Error */}
+          {submitError && (
+            <Alert 
+              type="error" 
+              message={submitError} 
+              className="mb-4"
             />
-            <label htmlFor="emailVerified" className="ml-2 block text-sm text-gray-900">
-              Email đã được xác thực
-            </label>
+          )}
+
+          <div className="space-y-4 overflow-visible">
+            {/* Username */}
+            <FormField
+              id="username"
+              label="Tên đăng nhập"
+              type="text"
+              placeholder="Nhập tên đăng nhập"
+              required
+              error={errors.username?.message}
+              register={register}
+            />
+
+            {/* Email */}
+            <FormField
+              id="email"
+              label="Email"
+              type="email"
+              placeholder="Nhập địa chỉ email"
+              required
+              error={errors.email?.message}
+              register={register}
+            />
+
+            {/* Role */}
+            <MultiSelect
+              name="roles"
+              label="Vai trò"
+              options={availableRoles}
+              error={errors.roles?.message}
+              disabled={isLoadingRoles}
+              placeholder="Chọn vai trò..."
+            />
+
+            {/* Email Verified */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="emailVerified"
+                {...register('emailVerified')}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="emailVerified" className="ml-2 block text-sm text-gray-900">
+                Email đã được xác thực
+              </label>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Footer with actions */}
-      <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm"
-        >
-          {isSubmitting ? (
-            <ButtonSpinner text="Đang cập nhật..." />
-          ) : (
-            'Cập nhật'
-          )}
-        </button>
-      </div>
-    </form>
+      </form>
+    </FormProvider>
   );
 }
 
@@ -302,6 +269,24 @@ export default function UserForm({ user, isOpen, onClose, onSuccess }: UserFormP
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isEditing = !!user;
+
+  const { data: rolesData, isLoading: isLoadingRoles, error: rolesError } = useQuery({
+    queryKey: ['roles'],
+    queryFn: fetchRoles,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: isOpen, // Only fetch when the modal is open
+  });
+
+  const availableRoles = rolesData?.map(role => ({
+    value: role.slug,
+    label: role.name,
+  })) || [];
+
+  useEffect(() => {
+    if (rolesError) {
+      setSubmitError('Không thể tải danh sách vai trò. Vui lòng thử lại.');
+    }
+  }, [rolesError]);
 
   const handleCreateSubmit = async (data: CreateFormData) => {
     setIsSubmitting(true);
@@ -350,17 +335,6 @@ export default function UserForm({ user, isOpen, onClose, onSuccess }: UserFormP
     onClose();
   };
 
-  const modalFooter = (
-    <button
-      type="button"
-      onClick={handleCancel}
-      disabled={isSubmitting}
-      className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-    >
-      Hủy
-    </button>
-  );
-
   return (
     <Modal
       isOpen={isOpen}
@@ -368,7 +342,30 @@ export default function UserForm({ user, isOpen, onClose, onSuccess }: UserFormP
       title={isEditing ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
       subtitle={isEditing ? 'Cập nhật thông tin người dùng' : 'Tạo tài khoản người dùng mới'}
       size="lg"
-      footer={modalFooter}
+      footer={
+        <>
+          <button
+            type="submit"
+            form={isEditing ? 'update-user-form' : 'create-user-form'} // Assign form ID
+            disabled={isSubmitting}
+            className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm"
+          >
+            {isSubmitting ? (
+              <ButtonSpinner text={isEditing ? 'Đang cập nhật...' : 'Đang tạo...'} />
+            ) : (
+              isEditing ? 'Cập nhật người dùng' : 'Tạo người dùng'
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={isSubmitting}
+            className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+          >
+            Hủy
+          </button>
+        </>
+      }
     >
       {isEditing && user ? (
         <UpdateUserForm
@@ -376,12 +373,16 @@ export default function UserForm({ user, isOpen, onClose, onSuccess }: UserFormP
           onSubmit={handleUpdateSubmit}
           isSubmitting={isSubmitting}
           submitError={submitError}
+          availableRoles={availableRoles}
+          isLoadingRoles={isLoadingRoles}
         />
       ) : (
         <CreateUserForm
           onSubmit={handleCreateSubmit}
           isSubmitting={isSubmitting}
           submitError={submitError}
+          availableRoles={availableRoles}
+          isLoadingRoles={isLoadingRoles}
         />
       )}
     </Modal>
