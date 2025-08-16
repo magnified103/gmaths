@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { authAPI, isAdmin } from '../api/auth';
+import { authAPI, isStaff } from '../api/auth';
 
 /**
  * Authentication hook providing login, registration, and user management
@@ -25,8 +25,8 @@ export const useAuth = () => {
       localStorage.setItem('auth-token', data.accessToken);
       queryClient.setQueryData(['auth', 'user'], data.user);
       
-      // Navigate based on user role after login
-      if (isAdmin(data.user)) {
+      // Navigate based on user permissions after login
+      if (isStaff(data.user)) {
         navigate('/admin');
       } else {
         navigate('/student/dashboard');
@@ -41,8 +41,8 @@ export const useAuth = () => {
       localStorage.setItem('auth-token', data.accessToken);
       queryClient.setQueryData(['auth', 'user'], data.user);
       
-      // Navigate based on user role after registration
-      if (isAdmin(data.user)) {
+      // Navigate based on user permissions after registration
+      if (isStaff(data.user)) {
         navigate('/admin');
       } else {
         navigate('/student/dashboard');
@@ -92,4 +92,4 @@ export const useAuth = () => {
     logout: logoutMutation.mutate,
     isLoggingOut: logoutMutation.isPending,
   };
-}; 
+};

@@ -1,25 +1,24 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { isAdmin } from '../../api/auth';
 import FullScreenLoader from '../ui/FullScreenLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole: string;
+  requiredPermissions?: string[]; // Change to requiredPermissions array
   redirectTo?: string;
 }
 
 /**
- * Protected route component that checks authentication and role-based access.
+ * Protected route component that checks authentication and permission-based access.
  * Redirects to login if not authenticated or to home if insufficient permissions.
  * @param children - Child components to render if access is granted.
- * @param requiredRole - Required user role to access this route (lowercase for UI).
+ * @param requiredPermissions - Array of required permission codes to access this route.
  * @param redirectTo - Custom redirect path (defaults to /login or /).
  */
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  requiredRole,
+  requiredPermissions, // Change prop name
   redirectTo 
 }) => {
   const { user, isAuthenticated, isLoadingUser } = useAuth();
@@ -34,9 +33,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={redirectTo || '/login'} replace />;
   }
 
-  // Check role-based access if required
-  if (requiredRole) {
-    const hasAccess = user.roles.includes(requiredRole);
+  // Check permission-based access if requiredPermissions are provided
+  if (requiredPermissions && requiredPermissions.length > 0) {
+    const hasAccess = requiredPermissions.some(permission => 
+      user.allPermissions?.includes(permission)
+    );
 
     if (!hasAccess) {
       return (
@@ -53,7 +54,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               </h1>
               <p className="text-gray-600 mb-6">
                 Bạn không có quyền truy cập vào khu vực này. 
-                {requiredRole === 'admin' 
+                {requiredPermissions.includes('Admin:Read') 
                   ? ' Chỉ quản trị viên mới có thể truy cập.' 
                   : ' Vui lòng liên hệ quản trị viên.'}
               </p>
@@ -75,4 +76,4 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   return <>{children}</>;
 };
 
-export default ProtectedRoute; 
+export default ProtectedRoute;

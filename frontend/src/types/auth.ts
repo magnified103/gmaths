@@ -7,6 +7,9 @@ export interface User {
   email: string;
   username: string;
   roles: string[];
+  allPermissions: string[];
+  emailVerified: boolean;
+  lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,4 +39,4 @@ export interface AuthResponse {
 export interface AuthError {
   message: string;
   field?: string;
-} 
+}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { isAdmin } from '../../api/auth';
+import { isStaff } from '../../api/auth';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -22,7 +22,7 @@ export default function AuthGuard({ children, redirectTo }: AuthGuardProps) {
 
   // If user is authenticated, redirect them away
   if (user) {
-    const defaultRedirect = isAdmin(user) ? '/admin' : '/';
+    const defaultRedirect = isStaff(user) ? '/admin' : '/';
     return <Navigate to={redirectTo || defaultRedirect} replace />;
   }
 

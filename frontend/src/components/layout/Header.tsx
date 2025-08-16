@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ChevronDownIcon, UserIcon, LogOutIcon } from 'lucide-react';
 import BrandLogo from '../ui/BrandLogo';
 import { useAuth } from '../../hooks/useAuth';
-import { isAdmin } from '../../api/auth';
+import { isStaff } from '../../api/auth';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
 /**
@@ -31,7 +31,7 @@ const Header: React.FC = () => {
       ];
     }
 
-    if (isAdmin(user)) {
+    if (isStaff(user)) {
       return [
         { name: 'Bảng điều khiển', href: '/admin', current: location.pathname === '/admin' },
         { name: 'Quản lý người dùng', href: '/admin/users', current: location.pathname === '/admin/users' },
@@ -102,11 +102,11 @@ const Header: React.FC = () => {
                       <div className="font-medium text-gray-900">{user.username}</div>
                       <div className="text-xs">{user.email}</div>
                       <div className="text-xs capitalize">
-                        {isAdmin(user) ? 'Quản trị viên' : 'Học sinh'}
+                        {isStaff(user) ? 'Quản trị viên' : 'Học sinh'}
                       </div>
                     </div>
                     <Link
-                      to={isAdmin(user) ? '/admin' : '/student/dashboard'}
+                      to={isStaff(user) ? '/admin' : '/student/dashboard'}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setIsUserMenuOpen(false)}
                     >

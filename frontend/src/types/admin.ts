@@ -7,6 +7,7 @@ export interface UserListItem {
   username: string;
   email: string;
   roles: string[];
+  allPermissions: string[]; // Add this line
   emailVerified: boolean;
   lastLoginAt: string | null;
   createdAt: string;

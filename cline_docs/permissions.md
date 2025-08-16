@@ -24,6 +24,7 @@ The system is built around three main entities: `User`, `Role`, and `Permission`
     *   Defined by the `User` model in `backend/prisma/schema.prisma`.
     *   Users are associated with one or more `Roles`.
     *   Their permissions are derived from the roles they hold.
+    *   The user object returned to the frontend now includes an `allPermissions` array, which is a flattened list of all permission `code`s granted to the user through their assigned roles. The `superuser` role automatically grants all existing permissions, so a user with the `superuser` role will have all permission codes in their `allPermissions` array.
 
 ## Data Model
 
@@ -33,4 +34,6 @@ The relationships between `Permission`, `Role`, and `User` are defined in `backe
 
 ## Permission Checking
 
-The logic for checking user permissions is implemented in `backend/src/services/permissionService.ts`. The primary function is `hasPermission(userId: string, code: string)`. This function determines if a given user possesses a specific permission, taking into account their assigned roles and the special `superuser` role.
+The logic for checking user permissions on the backend is implemented in `backend/src/services/permissionService.ts`. The primary function is `hasPermission(userId: string, code: string)`. This function determines if a given user possesses a specific permission, taking into account their assigned roles and the special `superuser` role.
+
+On the frontend, route protection is handled by `frontend/src/components/auth/ProtectedRoute.tsx`. This component now uses a `requiredPermissions` prop (an array of permission codes) instead of `requiredRole`. A user is granted access to a route if their `allPermissions` array includes at least one of the `requiredPermissions` for that route. If `requiredPermissions` is an empty array, only authentication is required.

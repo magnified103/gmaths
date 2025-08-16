@@ -114,7 +114,7 @@ function App() {
             <Route 
               path="/student" 
               element={
-                <ProtectedRoute requiredRole="student">
+                <ProtectedRoute>
                   <StudentDashboard />
                 </ProtectedRoute>
               } 
@@ -122,7 +122,7 @@ function App() {
             <Route 
               path="/student/dashboard" 
               element={
-                <ProtectedRoute requiredRole="student">
+                <ProtectedRoute>
                   <StudentDashboard />
                 </ProtectedRoute>
               } 
@@ -130,7 +130,7 @@ function App() {
             <Route 
               path="/student/exams" 
               element={
-                <ProtectedRoute requiredRole="student">
+                <ProtectedRoute>
                   <StudentExamListPage />
                 </ProtectedRoute>
               } 
@@ -140,7 +140,7 @@ function App() {
             <Route 
               path="/student/results" 
               element={
-                <ProtectedRoute requiredRole="student">
+                <ProtectedRoute>
                   <StudentResultsPage />
                 </ProtectedRoute>
               } 
@@ -148,7 +148,7 @@ function App() {
             <Route 
               path="/student/exams/:examId/attempts" 
               element={
-                <ProtectedRoute requiredRole="student">
+                <ProtectedRoute>
                   <ExamAttemptsPage />
                 </ProtectedRoute>
               } 
@@ -156,7 +156,7 @@ function App() {
             <Route 
               path="/student/exams/:examId/attempts/:attemptNumber/result" 
               element={
-                <ProtectedRoute requiredRole="student">
+                <ProtectedRoute>
                   <ExamResultPage />
                 </ProtectedRoute>
               } 
@@ -164,7 +164,7 @@ function App() {
             <Route 
               path="/student/exams/:examId/result" 
               element={
-                <ProtectedRoute requiredRole="student">
+                <ProtectedRoute>
                   <ExamResultPage />
                 </ProtectedRoute>
               } 
@@ -176,7 +176,7 @@ function App() {
             <Route 
               path="/exams/:examId/take" 
               element={
-                <ProtectedRoute requiredRole="student">
+                <ProtectedRoute>
                   <ExamTakingPage />
                 </ProtectedRoute>
               } 
@@ -186,7 +186,7 @@ function App() {
             <Route 
               path="/admin" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Admin:Read']}>
                   <AdminDashboard />
                 </ProtectedRoute>
               } 
@@ -194,7 +194,7 @@ function App() {
             <Route 
               path="/admin/users" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['User:Read']}>
                   <AdminPage />
                 </ProtectedRoute>
               } 
@@ -202,7 +202,7 @@ function App() {
             <Route 
               path="/admin/roles" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Role:Read']}>
                   <AdminRolesPage />
                 </ProtectedRoute>
               } 
@@ -212,7 +212,7 @@ function App() {
             <Route 
               path="/admin/questions" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Question:Read']}>
                   <QuestionsPage />
                 </ProtectedRoute>
               } 
@@ -222,7 +222,7 @@ function App() {
             <Route 
               path="/admin/exams" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Exam:Read']}>
                   <ExamListPage />
                 </ProtectedRoute>
               } 
@@ -230,7 +230,7 @@ function App() {
             <Route 
               path="/admin/exams/create" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Exam:Create']}>
                   <ExamBuilderPage />
                 </ProtectedRoute>
               } 
@@ -238,7 +238,7 @@ function App() {
             <Route 
               path="/admin/exams/:id/edit" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Exam:Update']}>
                   <ExamEditPage />
                 </ProtectedRoute>
               } 
@@ -248,7 +248,7 @@ function App() {
             <Route 
               path="/admin/results" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Stats:Read']}>
                   <AdminResultsPage />
                 </ProtectedRoute>
               } 
@@ -256,7 +256,7 @@ function App() {
             <Route 
               path="/admin/results/exams/:examId" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Stats:Read']}>
                   <ExamResultsManagementPage />
                 </ProtectedRoute>
               } 
@@ -264,7 +264,7 @@ function App() {
             <Route 
               path="/admin/results/students/:studentId" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Stats:Read']}>
                   <StudentResultsManagementPage />
                 </ProtectedRoute>
               } 
@@ -272,7 +272,7 @@ function App() {
             <Route 
               path="/admin/results/exams/:examId/students/:studentId/attempts/:attemptNumber" 
               element={
-                <ProtectedRoute requiredRole="staff">
+                <ProtectedRoute requiredPermissions={['Stats:Read']}>
                   <StudentExamAttemptResultPage />
                 </ProtectedRoute>
               } 

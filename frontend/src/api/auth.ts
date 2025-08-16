@@ -1,22 +1,13 @@
-import type { LoginForm, RegistrationForm, PasswordResetForm, AuthResponse, User, UserRole, DisplayRole } from '../types/auth';
+import type { LoginForm, RegistrationForm, PasswordResetForm, AuthResponse, User } from '../types/auth';
 import { API_BASE_URL } from './config';
 
 /**
- * Convert backend role to display role for UI consistency.
- * @param role - Backend role (uppercase).
- * @returns Display role (lowercase).
+ * Check if user has admin permission.
+ * @param user - User object from backend.
+ * @returns True if user has the 'Admin:Read' permission.
  */
-export function roleToDisplay(role: UserRole): DisplayRole {
-  return role.toLowerCase() as DisplayRole;
-}
-
-/**
- * Check if user has admin role.
- * @param role - User role from backend.
- * @returns True if user is admin.
- */
-export function isAdmin(user: User): boolean {
-  return user.roles.includes('staff');
+export function isStaff(user: User): boolean {
+  return user.allPermissions.includes('Admin:Read');
 }
 
 /**
@@ -78,8 +69,11 @@ export const authAPI = {
         email: response.user.email,
         username: response.user.username,
         roles: response.user.roles,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        allPermissions: response.user.allPermissions,
+        createdAt: response.user.createdAt,
+        updatedAt: response.user.updatedAt,
+        lastLoginAt: response.user.lastLoginAt,
+        emailVerified: response.user.emailVerified,
       },
       accessToken: response.token,
       refreshToken: response.token, // Using same token for now
@@ -108,8 +102,11 @@ export const authAPI = {
         email: response.user.email,
         username: response.user.username,
         roles: response.user.roles,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        allPermissions: response.user.allPermissions,
+        createdAt: response.user.createdAt,
+        updatedAt: response.user.updatedAt,
+        lastLoginAt: response.user.lastLoginAt,
+        emailVerified: response.user.emailVerified,
       },
       accessToken: response.token,
       refreshToken: response.token, // Using same token for now
@@ -180,8 +177,11 @@ export const authAPI = {
         email: response.email,
         username: response.username,
         roles: response.roles,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        allPermissions: response.allPermissions,
+        createdAt: response.createdAt,
+        updatedAt: response.updatedAt,
+        lastLoginAt: response.lastLoginAt,
+        emailVerified: response.emailVerified,
       };
     } catch (_error) {
       // If token is invalid, remove it and return null

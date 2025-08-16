@@ -58,11 +58,11 @@ export default function FormField<T extends FieldValues>({
           id={id}
           className={baseClasses}
           value={value}
-          onChange={onChange}
           disabled={disabled}
           required={required}
           {...(register ? register(id as Path<T>) : {})}
           {...(multiple ? { multiple } : {})}
+          onChange={onChange}
         >
           {options.map((option) => (
             <option key={option.value} value={option.value}>
@@ -82,10 +82,10 @@ export default function FormField<T extends FieldValues>({
             className={`${baseClasses} pr-10`}
             placeholder={placeholder}
             value={value}
-            onChange={onChange}
             disabled={disabled}
             required={required}
             {...(register ? register(id as Path<T>) : {})}
+            onChange={onChange}
           />
           <button
             type="button"
@@ -109,10 +109,10 @@ export default function FormField<T extends FieldValues>({
         className={baseClasses}
         placeholder={placeholder}
         value={value}
-        onChange={onChange}
         disabled={disabled}
         required={required}
         {...(register ? register(id as Path<T>) : {})}
+        onChange={onChange}
       />
     );
   };

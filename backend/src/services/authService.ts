@@ -4,6 +4,7 @@ import { User } from '../schemas/user';
 import { RegisterData, LoginData } from '../schemas/auth'; // Import Zod types
 import { prisma } from '../utils/db';
 import { checkUserExists, throwIfUserExists } from '../utils/userHelpers';
+import { Permission, Role } from '@prisma/client'; // Import Prisma models
 
 /**
  * Hash a password using bcrypt with salt rounds.
@@ -98,11 +99,28 @@ export async function loginUser(data: LoginData): Promise<User> {
     data: { lastLoginAt: new Date() }
   });
 
+  // Fetch all permissions for the user's roles
+  const allPermissions = await prisma.permission.findMany({
+    where: {
+      roles: {
+        some: {
+          id: {
+            in: user.roles.map(role => role.id)
+          }
+        }
+      }
+    },
+    select: {
+      code: true
+    }
+  });
+
   return {
     id: user.id,
     username: user.username,
     email: user.email,
     roles: user.roles.map(role => role.slug),
+    allPermissions: allPermissions.map(p => p.code),
     emailVerified: user.emailVerified,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
@@ -210,16 +228,24 @@ export async function getUserById(userId: string): Promise<User | null> {
   const result = await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      roles: true,
+      roles: {
+        include: {
+          permissions: true
+        }
+      },
     },
   });
   if (!result) return null;
+
+  const allPermissions = result.roles.flatMap(role => role.permissions.map(p => p.code));
+
   return {
     id: result.id,
     username: result.username,
     email: result.email,
     emailVerified: result.emailVerified,
     roles: result.roles.map(role => role.slug),
+    allPermissions: allPermissions,
     createdAt: result.createdAt.toISOString(),
     updatedAt: result.updatedAt.toISOString(),
     lastLoginAt: result.lastLoginAt ? result.lastLoginAt.toISOString() : null,
@@ -257,9 +283,15 @@ export async function createUser(
       },
     },
     include: {
-      roles: true,
+      roles: {
+        include: {
+          permissions: true
+        }
+      },
     },
   });
+
+  const allPermissions = result.roles.flatMap(role => role.permissions.map(p => p.code));
 
   return {
     id: result.id,
@@ -267,6 +299,7 @@ export async function createUser(
     email: result.email,
     emailVerified: result.emailVerified,
     roles: result.roles.map(role => role.slug),
+    allPermissions: allPermissions,
     createdAt: result.createdAt.toISOString(),
     updatedAt: result.updatedAt.toISOString(),
     lastLoginAt: result.lastLoginAt ? result.lastLoginAt.toISOString() : null,
@@ -323,12 +356,29 @@ export async function getUserList(filters: UserFilters): Promise<UserListRespons
   });
 
   return {
-    items: users.map(user => ({
-      ...user,
-      roles: user.roles.map(role => role.slug),
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-      lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+    items: await Promise.all(users.map(async user => {
+      const allPermissions = await prisma.permission.findMany({
+        where: {
+          roles: {
+            some: {
+              id: {
+                in: user.roles.map(role => role.id)
+              }
+            }
+          }
+        },
+        select: {
+          code: true
+        }
+      });
+      return {
+        ...user,
+        roles: user.roles.map(role => role.slug),
+        allPermissions: allPermissions.map(p => p.code),
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+        lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+      };
     })),
     pageIndex: page,
     itemsPerPage: limit,
@@ -387,6 +437,20 @@ export async function updateUser(
       email: updatedUser.email,
       emailVerified: updatedUser.emailVerified,
       roles: updatedUser.roles.map(role => role.slug),
+      allPermissions: await prisma.permission.findMany({
+        where: {
+          roles: {
+            some: {
+              id: {
+                in: updatedUser.roles.map(role => role.id)
+              }
+            }
+          }
+        },
+        select: {
+          code: true
+        }
+      }).then(perms => perms.map(p => p.code)),
       createdAt: updatedUser.createdAt.toISOString(),
       updatedAt: updatedUser.updatedAt.toISOString(),
       lastLoginAt: updatedUser.lastLoginAt ? updatedUser.lastLoginAt.toISOString() : null,

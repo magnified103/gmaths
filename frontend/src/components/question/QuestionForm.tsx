@@ -72,7 +72,7 @@ const questionSchema = z.object({
     )
     .optional(),
   // True/False specific fields
-  correctAnswer: z.coerce.boolean().optional(),
+  correctAnswer: z.string().transform(x => x === 'true').pipe(z.boolean()).optional(),
   showRandomOrder: z.boolean().optional(),
   // Fill-in-blank specific fields
   blanks: z
@@ -191,16 +191,17 @@ const questionSchema = z.object({
   }
 });
 
-type QuestionFormData = z.infer<typeof questionSchema>;
+type QuestionFormDataInput = z.input<typeof questionSchema>;
+type QuestionFormDataOutput = z.output<typeof questionSchema>;
 
 /**
  * Short Answer Fields Component
  */
 interface ShortAnswerFieldsProps {
-  register: UseFormRegister<QuestionFormData>;
-  setValue: UseFormSetValue<QuestionFormData>;
-  watch: UseFormWatch<QuestionFormData>;
-  errors: FieldErrors<QuestionFormData>;
+  register: UseFormRegister<QuestionFormDataInput>;
+  setValue: UseFormSetValue<QuestionFormDataInput>;
+  watch: UseFormWatch<QuestionFormDataInput>;
+  errors: FieldErrors<QuestionFormDataInput>;
 }
 
 const ShortAnswerFields: React.FC<ShortAnswerFieldsProps> = ({
@@ -339,7 +340,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
   /**
    * Get initial form values based on question type and existing data
    */
-  const getInitialFormValues = (): Partial<QuestionFormData> => {
+  const getInitialFormValues = (): Partial<QuestionFormDataInput> => {
     if (!question) {
       return {
         content: '',
@@ -395,7 +396,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
       case 'true-false':
         return {
           ...baseValues,
-          correctAnswer: typeData.correctAnswer ?? true,
+          correctAnswer: (typeData.correctAnswer === true ? 'true' : 'false'),
           showRandomOrder: typeData.randomizeOrder ?? false,
         };
 
@@ -439,8 +440,8 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
     watch,
     setValue,
     formState: { errors },
-  } = useForm<QuestionFormData>({
-    resolver: zodResolver(questionSchema),
+  } = useForm<z.input<typeof questionSchema>, any, z.output<typeof questionSchema>>({
+    resolver: zodResolver<z.input<typeof questionSchema>, any, z.output<typeof questionSchema>>(questionSchema),
     defaultValues: getInitialFormValues(),
   });
 
@@ -582,7 +583,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
   /**
    * Handle form submission
    */
-  const onSubmit = async (data: QuestionFormData) => {
+  const onSubmit = async (data: QuestionFormDataOutput) => {
     console.log('Form submit triggered with data:', data);
     setIsSubmitting(true);
     setSubmitError(null);

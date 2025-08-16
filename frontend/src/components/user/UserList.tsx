@@ -17,9 +17,8 @@ import {
   ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import type { UserListItem, UserFilters } from '../../types/admin';
-import type { User } from '../../types/auth';
 import { fetchUsers, deleteUser } from '../../api/admin';
-import { isAdmin } from '../../api/auth';
+import { isStaff } from '../../api/auth';
 
 interface UserListProps {
   onCreateUser: () => void;
@@ -100,11 +99,11 @@ export default function UserList({ onCreateUser, onEditUser }: UserListProps) {
 
   /**
    * Gets role display text in Vietnamese.
-   * @param role - User role.
+   * @param user - User object.
    * @returns Vietnamese role text.
    */
-  const getRoleText = (user: User): string => {
-    return isAdmin(user) ? 'Quản trị' : 'Học sinh';
+  const getRoleText = (user: UserListItem): string => {
+    return isStaff(user) ? 'Quản trị' : 'Học sinh';
   };
 
   return (
@@ -286,7 +285,7 @@ export default function UserList({ onCreateUser, onEditUser }: UserListProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        isAdmin(user)
+                        isStaff(user)
                           ? 'bg-purple-100 text-purple-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}>
@@ -474,4 +473,4 @@ export default function UserList({ onCreateUser, onEditUser }: UserListProps) {
       )}
     </div>
   );
-} 
+}

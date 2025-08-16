@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { isAdmin } from '../api/auth';
+import { isStaff } from '../api/auth';
 import FullScreenLoader from '../components/ui/FullScreenLoader';
 
 /**
@@ -23,7 +23,7 @@ const DashboardRedirect: React.FC = () => {
   }
 
   // Redirect based on user role
-  if (isAdmin(user)) {
+  if (isStaff(user)) {
     return <Navigate to="/admin" replace />;
   } else {
     return <Navigate to="/student/dashboard" replace />;
