@@ -9,7 +9,7 @@ export const userSchema = z.object({
   email: z.string().email().describe('User\'s email address'),
   emailVerified: z.boolean().describe('Whether the user\'s email has been verified'),
   roles: z.array(z.string()).describe('The slugs of roles assigned to the user.'),
-  allPermissions: z.array(z.string()).describe('All permissions the user has, derived from their roles.'),
+  allPermissions: z.array(z.string()).optional().describe('All permissions the user has, derived from their roles.'),
   createdAt: z.string().datetime().describe('Timestamp when the user was created').optional(),
   updatedAt: z.string().datetime().describe('Timestamp when the user was last updated').optional(),
   lastLoginAt: z.string().datetime().nullable().describe('Timestamp of the user\'s last login').optional(),
