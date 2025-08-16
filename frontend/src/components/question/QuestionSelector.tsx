@@ -28,6 +28,8 @@ import { useQuestions } from '../../hooks/useQuestions';
 import { useCategories } from '../../hooks/useCategories';
 import type { Question, QuestionFilters } from '../../types/questions';
 import type { QuestionSelection } from '../../types/exams';
+import RichTextDisplay from '../editor/RichTextDisplay';
+import { truncateText } from '../../utils/questionUtils';
 
 interface QuestionSelectorProps {
   selectedQuestions: string[];
@@ -86,9 +88,12 @@ const SortableQuestionItem: React.FC<SortableQuestionItemProps> = ({
       </span>
       
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">
-          {question.content.replace(/\$.*?\$/g, '[Math]')} {/* Simple LaTeX indicator */}
-        </p>
+        <div className="text-sm text-gray-900 line-clamp-2">
+          <RichTextDisplay 
+            content={truncateText(question.content, 100)}
+            className="prose-sm"
+          />
+        </div>
         <p className="text-xs text-gray-500">
           {question.type} • {question.difficulty} • {question.points} điểm
         </p>
@@ -484,9 +489,12 @@ export const QuestionSelector: React.FC<QuestionSelectorProps> = ({
                           )}
                         </div>
                         
-                        <p className="text-sm text-gray-900 line-clamp-2">
-                          {question.content.replace(/\$.*?\$/g, '[Math]')} {/* Simple LaTeX indicator */}
-                        </p>
+                        <div className="text-sm text-gray-900 line-clamp-2">
+                          <RichTextDisplay 
+                            content={truncateText(question.content, 100)}
+                            className="prose-sm"
+                          />
+                        </div>
                         
                         {isSelected && (
                           <div className="mt-2 text-xs text-blue-600">

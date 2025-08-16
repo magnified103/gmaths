@@ -64,7 +64,7 @@ export default function QuestionPreview({ question, isOpen, onClose }: QuestionP
         );
       }
 
-      case 'true-false':
+      case 'true-false': {
         const tfQuestion = question as any;
         return (
           <div className="space-y-2">
@@ -76,9 +76,10 @@ export default function QuestionPreview({ question, isOpen, onClose }: QuestionP
             </div>
           </div>
         );
+      }
 
-      case 'fill-blank':
-        const fbQuestion = question as any;
+      case 'fill-blank': {
+        const fbQuestion = question;
         if (!fbQuestion.blanks) return null;
         
         return (
@@ -98,9 +99,10 @@ export default function QuestionPreview({ question, isOpen, onClose }: QuestionP
             </div>
           </div>
         );
+      }
 
-      case 'short-answer':
-        const saQuestion = question as any;
+      case 'short-answer': {
+        const saQuestion = question;
         return (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-gray-700">Đáp án chấp nhận được:</h4>
@@ -121,9 +123,10 @@ export default function QuestionPreview({ question, isOpen, onClose }: QuestionP
             </div>
           </div>
         );
+      }
 
-      case 'essay':
-        const essayQuestion = question as any;
+      case 'essay': {
+        const essayQuestion = question;
         return (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-gray-700">Thông tin bài tự luận:</h4>
@@ -149,6 +152,7 @@ export default function QuestionPreview({ question, isOpen, onClose }: QuestionP
             </div>
           </div>
         );
+      }
 
       default:
         return null;
