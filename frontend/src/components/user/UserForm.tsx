@@ -80,7 +80,7 @@ function CreateUserForm({ onSubmit, isSubmitting, submitError, availableRoles, i
       username: '',
       email: '',
       password: '',
-      roles: ['student'],
+      roles: [],
     },
   });
 
@@ -91,7 +91,7 @@ function CreateUserForm({ onSubmit, isSubmitting, submitError, availableRoles, i
       username: '',
       email: '',
       password: '',
-      roles: ['student'],
+      roles: [],
     });
   }, [reset]);
 
