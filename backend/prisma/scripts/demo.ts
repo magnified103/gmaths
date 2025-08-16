@@ -157,7 +157,6 @@ async function main() {
     roles: {
       connect: [
         { slug: 'superuser' },
-        { slug: 'staff' },
       ]
     },
     emailVerified: true, // Admin account is pre-verified
