@@ -19,7 +19,7 @@ async function hashPassword(password: string): Promise<string> {
 async function seedCategories() {
   const existingCategories = await prisma.questionCategory.count();
   if (existingCategories > 0) {
-    console.log('✅ Categories already exist, skipping creation');
+    console.log(' Categories already exist, skipping creation');
     return;
   }
 
@@ -76,7 +76,7 @@ async function seedCategories() {
 async function seedTags() {
   const existingTags = await prisma.tag.count();
   if (existingTags > 0) {
-    console.log('✅ Tags already exist, skipping creation');
+    console.log(' Tags already exist, skipping creation');
     return;
   }
 
@@ -99,14 +99,14 @@ async function seedTags() {
     });
   }
 
-  console.log('✅ Created default question tags');
+  console.log(' Created default question tags');
 }
 
 /**
  * Main seeding function to populate the database with initial data.
  */
 async function main() {
-  console.log('🌱 Starting database seeding...');
+  console.log(' Starting database seeding...');
 
   const superuserRole = {
     slug: 'superuser',
@@ -168,22 +168,22 @@ async function main() {
     create: adminData,
   });
 
-  console.log('✅ Created default admin user:');
+  console.log(' Created default admin user:');
   console.log(`   Email: ${adminUser.email}`);
   console.log(`   Username: ${adminUser.username}`);
   console.log(`   Password: Admin@2024!`);
-  console.log('   ⚠️  Please change the default password after first login!');
+  console.log(' Please change the default password after first login!');
 
   // Seed question categories and tags
   await seedCategories();
   await seedTags();
 
-  console.log('🌱 Database seeding completed successfully!');
+  console.log(' Database seeding completed successfully!');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error during seeding:', e);
+    console.error(' Error during seeding:', e);
     process.exit(1);
   })
   .finally(async () => {
