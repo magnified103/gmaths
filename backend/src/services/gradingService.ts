@@ -5,6 +5,7 @@
 
 import { prisma } from '../utils/db';
 import { ExamAnswer, ExamSubmission } from '../types/exam';
+import { TrueFalseData } from '../types/questions';
 
 /**
  * Question scoring result interface
@@ -385,7 +386,7 @@ export class GradingService {
    */
   private gradeTrueFalse(
     studentAnswer: any,
-    typeData: any,
+    typeData: TrueFalseData,
     points: number
   ): { points: number; partialCredit: number; feedback: string } {
     if (typeof studentAnswer !== 'boolean' || typeof typeData.correctAnswer !== 'boolean') {

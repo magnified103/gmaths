@@ -324,6 +324,186 @@ const ShortAnswerFields: React.FC<ShortAnswerFieldsProps> = ({
 };
 
 /**
+ * Fill Blank Fields Component
+ */
+interface FillBlankFieldsProps {
+  control: any; // Use any for now to avoid deep type issues with useFieldArray
+  register: UseFormRegister<QuestionFormDataInput>;
+  setValue: UseFormSetValue<QuestionFormDataInput>;
+  watch: UseFormWatch<QuestionFormDataInput>;
+  errors: FieldErrors<QuestionFormDataInput>;
+}
+
+const FillBlankFields: React.FC<FillBlankFieldsProps> = ({
+  control,
+  register,
+  setValue,
+  watch,
+  errors,
+}) => {
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'blanks',
+  });
+
+  const watchedBlanks = watch('blanks');
+
+  const addBlank = () => {
+    append({ position: fields.length, acceptedAnswers: [''], caseSensitive: false, placeholder: '' });
+  };
+
+  const removeBlank = (index: number) => {
+    if (fields.length > 1) {
+      remove(index);
+    }
+  };
+
+  const addAcceptedAnswer = (blankIndex: number) => {
+    const currentAnswers = watchedBlanks?.[blankIndex]?.acceptedAnswers || [];
+    const newAnswers = [...currentAnswers, ''];
+    setValue(`blanks.${blankIndex}.acceptedAnswers`, newAnswers);
+  };
+
+  const removeAcceptedAnswer = (blankIndex: number, answerIndex: number) => {
+    const currentAnswers = watchedBlanks?.[blankIndex]?.acceptedAnswers || [];
+    if (currentAnswers.length > 1) {
+      const newAnswers = currentAnswers.filter((_, i) => i !== answerIndex);
+      setValue(`blanks.${blankIndex}.acceptedAnswers`, newAnswers);
+    }
+  };
+
+  const updateAcceptedAnswer = (blankIndex: number, answerIndex: number, value: string) => {
+    const newAnswers = [...(watchedBlanks?.[blankIndex]?.acceptedAnswers || [])];
+    newAnswers[answerIndex] = value;
+    setValue(`blanks.${blankIndex}.acceptedAnswers`, newAnswers);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Cấu hình chỗ trống *
+          </label>
+          <p className="text-xs text-gray-500 mt-1">
+            Xác định các chỗ trống và các đáp án được chấp nhận cho mỗi chỗ trống.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          icon={<PlusIcon className="h-4 w-4" />}
+          onClick={addBlank}
+          disabled={fields.length >= 5}
+        >
+          Thêm chỗ trống
+        </Button>
+      </div>
+
+      <div className="space-y-4">
+        {fields.map((field, blankIndex) => (
+          <div key={field.id} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-md font-semibold text-gray-800">Chỗ trống {blankIndex + 1}</h4>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={<TrashIcon className="h-4 w-4" />}
+                onClick={() => removeBlank(blankIndex)}
+                disabled={fields.length <= 1}
+                className="text-red-600 hover:text-red-700"
+              >
+              </Button>
+            </div>
+
+            {/* Placeholder */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Văn bản gợi ý (tùy chọn)
+              </label>
+              <input
+                type="text"
+                {...register(`blanks.${blankIndex}.placeholder`)}
+                placeholder="VD: Nhập số nguyên..."
+                className="block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Văn bản này sẽ hiển thị trong chỗ trống trước khi học sinh nhập câu trả lời.
+              </p>
+            </div>
+
+            {/* Accepted Answers for this blank */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Đáp án chấp nhận được *
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={<PlusIcon className="h-4 w-4" />}
+                  onClick={() => addAcceptedAnswer(blankIndex)}
+                  disabled={(watchedBlanks?.[blankIndex]?.acceptedAnswers?.length || 0) >= 5}
+                >
+                  Thêm đáp án
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {(watchedBlanks?.[blankIndex]?.acceptedAnswers || []).map((answer, answerIndex) => (
+                  <div key={answerIndex} className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={answer}
+                      onChange={(e) => updateAcceptedAnswer(blankIndex, answerIndex, e.target.value)}
+                      placeholder="Nhập đáp án được chấp nhận..."
+                      className="block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      icon={<TrashIcon className="h-4 w-4" />}
+                      onClick={() => removeAcceptedAnswer(blankIndex, answerIndex)}
+                      disabled={(watchedBlanks?.[blankIndex]?.acceptedAnswers?.length || 0) <= 1}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {errors.blanks?.[blankIndex]?.acceptedAnswers && (
+                <p className="mt-2 text-sm text-red-600">{errors.blanks?.[blankIndex]?.acceptedAnswers?.message}</p>
+              )}
+            </div>
+
+            {/* Case Sensitive for this blank */}
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  {...register(`blanks.${blankIndex}.caseSensitive`)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700">
+                  Phân biệt chữ hoa/thường cho chỗ trống này
+                </span>
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {errors.blanks && typeof errors.blanks.message === 'string' && (
+        <p className="mt-2 text-sm text-red-600">{errors.blanks.message}</p>
+      )}
+    </div>
+  );
+};
+
+/**
  * Question form component cho tạo và chỉnh sửa câu hỏi toán học
  */
 export default function QuestionForm({ question, isOpen, onClose, onSuccess }: QuestionFormProps) {
@@ -535,7 +715,7 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
           replace([]); // Clear options array
           break;
           
-        case 'fill-blank':
+        case 'fill-blank': { // Added opening brace
           // Clear all other fields
           setValue('options', undefined);
           setValue('acceptableAnswers', undefined);
@@ -544,8 +724,15 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
           setValue('minWords', undefined);
           setValue('rubric', undefined);
           setValue('showRandomOrder', undefined);
-          replace([]); // Clear options array
+          setValue('caseSensitive', undefined); // Also clear caseSensitive from root if it was set by short-answer
+
+          // Set default blanks if not already set
+          const currentBlanks = watch('blanks');
+          if (!currentBlanks || currentBlanks.length === 0) {
+            setValue('blanks', [{ position: 0, acceptedAnswers: [''], caseSensitive: false, placeholder: '' }]);
+          }
           break;
+        } // Added closing brace
           
         case 'short-answer': {
           // Clear all other fields
@@ -1001,6 +1188,8 @@ export default function QuestionForm({ question, isOpen, onClose, onSuccess }: Q
             </div>
           ) : watchedType === 'short-answer' ? (
             <ShortAnswerFields register={register} setValue={setValue} watch={watch} errors={errors} />
+          ) : watchedType === 'fill-blank' ? (
+            <FillBlankFields control={control} register={register} setValue={setValue} watch={watch} errors={errors} />
           ) : watchedType === 'true-false' ? (
             <div className="space-y-4">
               <div>

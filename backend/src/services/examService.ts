@@ -744,7 +744,7 @@ export class ExamService {
     }
 
     // Max attempts validation
-    if (data.maxAttempts <= 0 || data.maxAttempts > 10) {
+    if (data.maxAttempts <= 0 || data.maxAttempts > 1000) {
       errors.push({
         field: 'maxAttempts',
         message: 'Max attempts must be between 1 and 10',
