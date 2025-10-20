@@ -56,7 +56,9 @@ jobs:
       run: pnpm run build --filter=frontend
 
     - name: Build backend
-      run: pnpm run build --filter=backend
+      run: |
+        rm -rf tests/
+        pnpm run build --filter=backend
 
   # Future deployment job will be added here
   # deploy:
